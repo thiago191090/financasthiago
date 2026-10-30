@@ -68,6 +68,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .sec-h h2{font-size:14px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px}
 .sec-h .tot{font-weight:700;font-size:14px}
 .sec-sub{padding:0 14px 8px;font-size:12px;color:var(--muted)}
+.grp-h{width:100%;text-align:left}
+.grp .sec-sub{padding-bottom:12px}
+.grp .progress{margin-top:-4px;margin-bottom:12px}
+.grp .tot{display:flex;align-items:center;gap:6px}
+.chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.grp.open .chev{transform:rotate(180deg)}
+.grp-body{display:none}
+.grp.open .grp-body{display:block}
 .dot{width:9px;height:9px;border-radius:3px;background:var(--c)}
 .item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line);width:100%;text-align:left}
 .item:active{background:var(--card2)}
@@ -437,7 +445,7 @@ function porPagamento(m, parc) {
 function mesesFuturos() { const t = todayKey(); return Object.keys(S.meses).filter(k => k >= t); }
 
 /* ============ estado de tela ============ */
-const ui = { tab: 'mes', mes: null };
+const ui = { tab: 'mes', mes: null, abertos: new Set() };
 function mesInicial() {
   const t = todayKey(), ks = Object.keys(S.meses).sort();
   if (S.meses[t] || !ks.length) return t;
@@ -531,36 +539,40 @@ function viewMes() {
     <div class="stat"><div class="k">Gasto total</div><div class="v num" style="color:var(--red)">${fmt(t.gastos)}</div></div>
   </div>
 
-  <div class="sec">
-    <div class="sec-h"><h2><span class="dot" style="--c:#f87171"></span>Despesas fixas</h2><span class="tot num">${fmt(t.fixas)}</span></div>
-    <div class="sec-sub">${pagas} de ${m.fixas.length} pagas</div>
-    <div class="progress"><i style="width:${m.fixas.length ? pagas / m.fixas.length * 100 : 0}%"></i></div>
-    ${fixasHtml}
-    <button class="add-row" data-a="add" data-tipo="fixo">${ICON.plus}Adicionar fixa</button>
-  </div>
+  ${grupo({ id: 'fixas', titulo: 'Despesas fixas', cor: '#f87171', total: t.fixas,
+    resumo: `${pagas} de ${m.fixas.length} pagas`,
+    extra: `<div class="progress"><i style="width:${m.fixas.length ? pagas / m.fixas.length * 100 : 0}%"></i></div>`,
+    corpo: fixasHtml + `<button class="add-row" data-a="add" data-tipo="fixo">${ICON.plus}Adicionar fixa</button>` })}
 
-  <div class="sec">
-    <div class="sec-h"><h2><span class="dot" style="--c:#fbbf24"></span>Despesas variáveis</h2><span class="tot num">${fmt(t.variaveis)}</span></div>
-    ${varHtml || '<div class="empty">Nenhum gasto variável neste mês.</div>'}
-    <button class="add-row" data-a="add" data-tipo="gasto">${ICON.plus}Adicionar gasto</button>
-  </div>
+  ${grupo({ id: 'var', titulo: 'Despesas variáveis', cor: '#fbbf24', total: t.variaveis,
+    resumo: itens(m.variaveis.length + t.parc.length),
+    corpo: (varHtml || '<div class="empty">Nenhum gasto variável neste mês.</div>') + `<button class="add-row" data-a="add" data-tipo="gasto">${ICON.plus}Adicionar gasto</button>` })}
 
-  <div class="sec">
-    <div class="sec-h"><h2><span class="dot" style="--c:#60a5fa"></span>Poupança e investimentos</h2><span class="tot num">${fmt(t.invest)}</span></div>
-    ${invHtml || '<div class="empty">Nada investido neste mês ainda.</div>'}
-    <button class="add-row" data-a="add" data-tipo="invest">${ICON.plus}Adicionar investimento</button>
-  </div>
+  ${grupo({ id: 'inv', titulo: 'Poupança e investimentos', cor: '#60a5fa', total: t.invest,
+    resumo: itens(m.invest.length),
+    corpo: (invHtml || '<div class="empty">Nada investido neste mês ainda.</div>') + `<button class="add-row" data-a="add" data-tipo="invest">${ICON.plus}Adicionar investimento</button>` })}
 
-  <div class="sec">
-    <div class="sec-h"><h2><span class="dot" style="--c:#4ade80"></span>Rendas</h2><span class="tot num">${fmt(t.entradas)}</span></div>
-    ${rendaHtml}
-    <button class="add-row" data-a="add" data-tipo="renda">${ICON.plus}Adicionar renda extra</button>
-  </div>
+  ${grupo({ id: 'renda', titulo: 'Rendas', cor: '#4ade80', total: t.entradas,
+    resumo: m.extras.length ? `Salário + ${itens(m.extras.length).replace('itens', 'extras').replace('item', 'extra')}` : 'Salário',
+    corpo: rendaHtml + `<button class="add-row" data-a="add" data-tipo="renda">${ICON.plus}Adicionar renda extra</button>` })}
 
-  <div class="sec">
-    <div class="sec-h"><h2>Por forma de pagamento</h2></div>
-    <div class="sec-sub">Quanto vai para cada cartão (fatura) e para cada forma de pagamento.</div>
-    ${payHtml || '<div class="empty">Sem gastos lançados.</div>'}
+  ${grupo({ id: 'pag', titulo: 'Por forma de pagamento', total: t.gastos,
+    resumo: 'Quanto vai para cada cartão (fatura) e forma de pagamento',
+    corpo: payHtml || '<div class="empty">Sem gastos lançados.</div>' })}`;
+}
+
+/* grupos recolhíveis: começam fechados; ficam abertos enquanto o app estiver aberto */
+const itens = n => n === 0 ? 'Nenhum item' : n === 1 ? '1 item' : `${n} itens`;
+function grupo({ id, titulo, cor, total, resumo, extra = '', corpo }) {
+  const aberto = ui.abertos.has(id);
+  return `<div class="sec grp ${aberto ? 'open' : ''}">
+    <button class="sec-h grp-h" data-a="grupo" data-g="${id}" aria-expanded="${aberto}">
+      <h2>${cor ? `<span class="dot" style="--c:${cor}"></span>` : ''}${titulo}</h2>
+      <span class="tot num">${fmt(total)}<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+    </button>
+    ${resumo ? `<div class="sec-sub">${resumo}</div>` : ''}
+    ${extra}
+    <div class="grp-body">${corpo}</div>
   </div>`;
 }
 
@@ -896,6 +908,12 @@ document.addEventListener('click', e => {
     case 'add-fixo': editFixo(null); break;
     case 'ed-pag': editPag(id); break;
     case 'add-pag': editPag(null); break;
+    case 'grupo': {
+      const g = b.dataset.g;
+      ui.abertos.has(g) ? ui.abertos.delete(g) : ui.abertos.add(g);
+      const sec = b.closest('.grp'); sec.classList.toggle('open'); b.setAttribute('aria-expanded', ui.abertos.has(g));
+      break;
+    }
     case 'go-config': ui.tab = 'config'; render(); window.scrollTo(0, 0); break;
     case 'cfg-sync': openSheet({
       title: 'Conectar ao GitHub', saveLabel: 'Conectar',
