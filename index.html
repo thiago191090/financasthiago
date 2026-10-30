@@ -313,6 +313,46 @@ function normalize() {
 }
 /* cria o mês (com salário padrão e fixos) se ainda não existir */
 function garantirMes(k) { if (!S.meses[k]) S.meses[k] = novoMes(k); return S.meses[k]; }
+
+/* Converte lançamentos escritos como "GIRO 4/10", "TV 11/12" em parcelados de verdade.
+   A primeira aparição define a sequência; as parcelas seguintes vão para os meses certos
+   (criando os que faltam). Parcelas anteriores à primeira aparição não são criadas. */
+function converterParcelasDoTexto() {
+  const re = /^(.*\S)\s+(\d{1,3})\s*\/\s*(\d{1,3})$/;
+  const grupos = {};
+  Object.keys(S.meses).sort().forEach(k => ['variaveis', 'invest', 'extras'].forEach(l => S.meses[k][l].forEach(it => {
+    if (it.parc) return;
+    const mm = String(it.desc || '').trim().match(re); if (!mm) return;
+    const i = +mm[2], n = +mm[3]; if (n < 2 || i < 1 || i > n) return;
+    const chave = `${l}|${norm(mm[1]).trim()}|${n}`;
+    (grupos[chave] ||= { l, base: mm[1].trim(), n, occ: [] }).occ.push({ k, it, i });
+  })));
+  const nomes = [], criados = new Set();
+  Object.values(grupos).forEach(G => {
+    const a = G.occ[0], ini = addMonth(a.k, -(a.i - 1)), g = uid();
+    const porMes = {}; G.occ.forEach(o => (porMes[o.k] ||= []).push(o));
+    for (let i = a.i; i <= G.n; i++) {
+      const k = addMonth(ini, i - 1), daqui = porMes[k];
+      if (daqui && daqui.length) { const o = daqui.shift(); o.it.desc = G.base; o.it.parc = { g, i, n: G.n }; continue; }
+      if (!S.meses[k]) criados.add(k);
+      const novo = { id: uid(), desc: G.base, valor: a.it.valor, parc: { g, i, n: G.n } };
+      if (G.l === 'variaveis') novo.pag = a.it.pag || '';
+      garantirMes(k)[G.l].push(novo);
+    }
+    nomes.push(`${G.base} (${shortLabel(addMonth(ini, a.i - 1))}–${shortLabel(addMonth(ini, G.n - 1))})`);
+  });
+  return { nomes, criados: [...criados].sort() };
+}
+/* roda uma única vez por base de dados (a marca vai junto para o GitHub) */
+function migrarSePreciso() {
+  if (S.migParcTexto) return;
+  const r = converterParcelasDoTexto();
+  S.migParcTexto = 1;
+  // dados ainda intocados (aparelho novo): grava só aqui, sem marcar como alteração a enviar
+  if (!S.updatedAt) saveLocal(); else save();
+  render();
+  if (r.nomes.length) setTimeout(() => toast(`Viraram parcelados: ${r.nomes.join(', ')}` + (r.criados.length ? `. Meses criados: ${r.criados.map(shortLabel).join(', ')}` : '')), 300);
+}
 function load() {
   try { const raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); } } catch (e) { S = null; }
   if (!S || !S.meses) { S = seed(); S.updatedAt = 0; saveLocal(); }
@@ -391,6 +431,7 @@ function adotarRemoto(rem) {
   S = rem.data; normalize(); saveLocal();
   SY.sha = rem.sha; SY.dirty = false; SY.lastSync = Date.now(); saveSync();
   if (!S.meses[ui.mes]) ui.mes = mesInicial();
+  if (!S.migParcTexto) setTimeout(migrarSePreciso, 0);
   render();
 }
 let syncing = false, syncAgain = false, syncTimer = null;
@@ -1410,7 +1451,7 @@ document.addEventListener('click', e => {
     case 'sync-off': if (confirm('Desconectar do GitHub neste aparelho? Os dados continuam aqui e no GitHub.')) { Object.assign(SY, { token: '', sha: null }); saveSync(); setSync('off'); render(); } break;
     case 'export': exportar(); break;
     case 'import': $('#importFile').click(); break;
-    case 'reset': if (confirm('Apagar tudo deste aparelho e voltar aos dados da planilha?' + (syncOn() ? ' Isso também substitui os dados salvos no GitHub.' : '') + ' Exporte um backup antes, se precisar.')) { S = seed(); save(); ui.mes = mesInicial(); ui.tab = 'mes'; render(); toast('Dados restaurados'); } break;
+    case 'reset': if (confirm('Apagar tudo deste aparelho e voltar aos dados da planilha?' + (syncOn() ? ' Isso também substitui os dados salvos no GitHub.' : '') + ' Exporte um backup antes, se precisar.')) { S = seed(); normalize(); save(); ui.mes = mesInicial(); ui.tab = 'mes'; render(); toast('Dados restaurados'); migrarSePreciso(); } break;
   }
 });
 
@@ -1420,7 +1461,8 @@ load();
 ui.mes = mesInicial();
 if (syncOn()) syncState.status = SY.dirty ? 'pend' : 'ok';
 render();
-if (syncOn()) sincronizar({ silent: true });
+/* sincroniza primeiro (para converter já sobre os dados mais novos) e depois converte as parcelas antigas */
+if (syncOn()) sincronizar({ silent: true }).finally(migrarSePreciso); else migrarSePreciso();
 /* ao voltar para o app (ex.: depois de usar no computador), busca as novidades */
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && syncOn()) sincronizar({ silent: true }); });
 window.addEventListener('online', () => { if (syncOn()) sincronizar({ silent: true }); });
