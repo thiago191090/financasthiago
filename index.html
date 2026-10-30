@@ -189,6 +189,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 <nav class="nav"><div class="in" id="nav">
   <button data-tab="mes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Mês</button>
   <button data-tab="fixos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Fixos</button>
+  <button data-tab="invest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Investido</button>
   <button data-tab="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Histórico</button>
   <button data-tab="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
 </div></nav>
@@ -243,6 +244,7 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 };
 ICON.cartao = ICON.card;
+ICON.minus = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>';
 ICON.mic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const TIPOS_PAG = [{ v: 'cartao', l: 'Cartão de crédito' }, { v: 'pix', l: 'Pix' }, { v: 'boleto', l: 'Boleto' }, { v: 'debito', l: 'Débito / conta' }, { v: 'dinheiro', l: 'Dinheiro' }, { v: 'outro', l: 'Outro' }];
 
@@ -268,6 +270,7 @@ function seed() {
     fixas: fixos.map(f => ({ id: uid(), ref: f.id, nome: f.nome, valor: (f.id in over) ? over[f.id] : f.valor, pag: f.pag, pago: false })),
     variaveis: vars.map(([desc, valor, pag]) => ({ id: uid(), desc, valor, pag: pag || '' })),
     invest: inv.map(([desc, valor]) => ({ id: uid(), desc, valor })),
+    retiradas: [],
   });
   return {
     version: 1,
@@ -290,7 +293,22 @@ function seed() {
 
 /* ============ persistência local ============ */
 let S;
-function normalize() { S.parcelados ||= []; S.pagamentos ||= []; S.fixos ||= []; S.meses ||= {}; S.updatedAt ||= 0; }
+function normalize() {
+  S.pagamentos ||= []; S.fixos ||= []; S.meses ||= {}; S.updatedAt ||= 0;
+  Object.values(S.meses).forEach(m => { m.extras ||= []; m.fixas ||= []; m.variaveis ||= []; m.invest ||= []; m.retiradas ||= []; });
+  // versões antigas guardavam parcelados à parte; agora cada parcela fica gravada no seu mês
+  if (S.parcelados && S.parcelados.length) {
+    S.parcelados.forEach(p => {
+      for (let i = 0; i < p.n; i++) {
+        const k = addMonth(p.inicio, i); garantirMes(k);
+        S.meses[k].variaveis.push({ id: uid(), desc: p.desc, valor: p.valor, pag: p.pag || '', parc: { g: p.id, i: i + 1, n: p.n } });
+      }
+    });
+  }
+  delete S.parcelados;
+}
+/* cria o mês (com salário padrão e fixos) se ainda não existir */
+function garantirMes(k) { if (!S.meses[k]) S.meses[k] = novoMes(k); return S.meses[k]; }
 function load() {
   try { const raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); } } catch (e) { S = null; }
   if (!S || !S.meses) { S = seed(); S.updatedAt = 0; saveLocal(); }
@@ -433,35 +451,58 @@ function novoMes(key) {
     salario: S.salarioPadrao,
     extras: [],
     fixas: S.fixos.map(f => ({ id: uid(), ref: f.id, nome: f.nome, valor: f.valor, pag: f.pag, pago: false })),
-    variaveis: [], invest: [],
+    variaveis: [], invest: [], retiradas: [],
   };
 }
-function parcelasDoMes(key) {
-  return S.parcelados.map(p => {
-    const i = diffMonths(p.inicio, key);
-    if (i < 0 || i >= p.n) return null;
-    return { pid: p.id, desc: p.desc, num: `${i + 1}/${p.n}`, valor: p.valor, pag: p.pag || '' };
-  }).filter(Boolean);
-}
-function totais(m, key) {
-  const parc = parcelasDoMes(key);
+function totais(m) {
   const salario = Number(m.salario) || 0;
   const extra = sum(m.extras);
+  const resgate = sum((m.retiradas || []).filter(r => r.entra));   // retirada que volta para o caixa do mês
   const fixas = sum(m.fixas);
-  const variaveis = round(sum(m.variaveis) + sum(parc));
+  const variaveis = sum(m.variaveis);
   const invest = sum(m.invest);
-  const entradas = round(salario + extra);
+  const entradas = round(salario + extra + resgate);
   const gastos = round(fixas + variaveis);
   const saidas = round(gastos + invest);
-  return { salario, extra, fixas, variaveis, invest, entradas, gastos, saidas, sobra: round(entradas - saidas), parc };
+  return { salario, extra, resgate, fixas, variaveis, invest, entradas, gastos, saidas, sobra: round(entradas - saidas) };
 }
-function porPagamento(m, parc) {
+function porPagamento(m) {
   const map = {};
   const add = (pag, v) => { const k = pag || ''; map[k] = round((map[k] || 0) + (Number(v) || 0)); };
   m.fixas.forEach(f => add(f.pag, f.valor));
   m.variaveis.forEach(v => add(v.pag, v.valor));
-  parc.forEach(p => add(p.pag, p.valor));
   return Object.entries(map).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+}
+const parcChip = it => it.parc ? `<span class="chip parc">Parcela ${it.parc.i}/${it.parc.n}</span>` : '';
+/* todas as parcelas de um mesmo lançamento, em todos os meses */
+function parcelasDoGrupo(g) {
+  const out = [];
+  Object.keys(S.meses).sort().forEach(k => ['variaveis', 'invest', 'extras'].forEach(l =>
+    S.meses[k][l].forEach(it => { if (it.parc && it.parc.g === g) out.push({ k, l, it }); })));
+  return out;
+}
+
+/* ============ investimentos ============ */
+const chaveDestino = s => norm(s).replace(/\s+/g, ' ').trim();
+function carteira() {
+  const hoje = todayKey(), dest = {}, movs = [];
+  let aportes = 0, retiradas = 0, ateHoje = 0, futuro = 0;
+  const pegar = nome => { const c = chaveDestino(nome) || 'sem nome'; return dest[c] ||= { nome: nome || 'Sem nome', aportes: 0, retiradas: 0 }; };
+  Object.keys(S.meses).sort().forEach(k => {
+    const m = S.meses[k];
+    m.invest.forEach(it => {
+      const d = pegar(it.desc); d.aportes = round(d.aportes + it.valor); aportes = round(aportes + it.valor);
+      if (k <= hoje) ateHoje = round(ateHoje + it.valor); else futuro = round(futuro + it.valor);
+      movs.push({ k, tipo: 'aporte', it });
+    });
+    (m.retiradas || []).forEach(it => {
+      const d = pegar(it.destino); d.retiradas = round(d.retiradas + it.valor); retiradas = round(retiradas + it.valor);
+      if (k <= hoje) ateHoje = round(ateHoje - it.valor); else futuro = round(futuro - it.valor);
+      movs.push({ k, tipo: 'retirada', it });
+    });
+  });
+  const destinos = Object.values(dest).map(d => ({ ...d, saldo: round(d.aportes - d.retiradas) })).sort((a, b) => b.saldo - a.saldo);
+  return { aportes, retiradas, saldo: round(aportes - retiradas), ateHoje, futuro, destinos, movs: movs.reverse() };
 }
 /* aplica mudança de um fixo aos meses já criados a partir do mês atual (só itens ainda não pagos) */
 function mesesFuturos() { const t = todayKey(); return Object.keys(S.meses).filter(k => k >= t); }
@@ -478,7 +519,7 @@ function mesInicial() {
 function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $('#fab').style.display = $('#fabMic').style.display = (ui.tab === 'mes' && S.meses[ui.mes]) ? '' : 'none';
-  const v = { mes: viewMes, fixos: viewFixos, hist: viewHist, config: viewConfig }[ui.tab];
+  const v = { mes: viewMes, fixos: viewFixos, invest: viewInvest, hist: viewHist, config: viewConfig }[ui.tab];
   $('#app').innerHTML = v();
 }
 
@@ -510,23 +551,24 @@ function viewMes() {
       <button class="val num" data-a="ed-fixa" data-id="${f.id}">${fmt(f.valor)}</button>
     </div>`).join('');
 
-  const varHtml = [
-    ...m.variaveis.map(v => `<button class="item" data-a="ed-var" data-id="${v.id}">
-      <div class="main"><div class="t">${esc(v.desc)}</div><div class="s">${pagChip(v.pag)}</div></div>
-      <div class="val num">${fmt(v.valor)}</div></button>`),
-    ...t.parc.map(p => `<button class="item" data-a="ed-parc" data-id="${p.pid}">
-      <div class="main"><div class="t">${esc(p.desc)}</div><div class="s"><span class="chip parc">Parcela ${p.num}</span>${pagChip(p.pag)}</div></div>
-      <div class="val num">${fmt(p.valor)}</div></button>`),
-  ].join('');
+  const varHtml = m.variaveis.map(v => `<button class="item" data-a="ed-var" data-id="${v.id}">
+      <div class="main"><div class="t">${esc(v.desc)}</div><div class="s">${parcChip(v)}${pagChip(v.pag)}</div></div>
+      <div class="val num">${fmt(v.valor)}</div></button>`).join('');
 
+  const retMes = m.retiradas || [];
   const invHtml = m.invest.map(v => `<button class="item" data-a="ed-inv" data-id="${v.id}">
-      <div class="main"><div class="t">${esc(v.desc)}</div></div><div class="val num">${fmt(v.valor)}</div></button>`).join('');
+      <div class="main"><div class="t">${esc(v.desc)}</div>${v.parc ? `<div class="s">${parcChip(v)}</div>` : ''}</div><div class="val num">${fmt(v.valor)}</div></button>`).join('') +
+    retMes.map(r => `<button class="item" data-a="ed-ret" data-id="${r.id}">
+      <div class="main"><div class="t">Retirada: ${esc(r.destino)}</div><div class="s"><span class="chip">${r.entra ? 'entrou no caixa do mês' : 'só abateu do investido'}</span></div></div>
+      <div class="val num" style="color:var(--red)">−${fmt(r.valor)}</div></button>`).join('');
 
   const rendaHtml = `<button class="item" data-a="ed-sal"><div class="main"><div class="t">Salário</div><div class="s"><span>Fixo mensal</span></div></div><div class="val num">${fmt(t.salario)}</div></button>` +
     m.extras.map(v => `<button class="item" data-a="ed-extra" data-id="${v.id}">
-      <div class="main"><div class="t">${esc(v.desc)}</div><div class="s"><span>Renda extra</span></div></div><div class="val num">${fmt(v.valor)}</div></button>`).join('');
+      <div class="main"><div class="t">${esc(v.desc)}</div><div class="s">${v.parc ? parcChip(v) : '<span>Renda extra</span>'}</div></div><div class="val num">${fmt(v.valor)}</div></button>`).join('') +
+    retMes.filter(r => r.entra).map(r => `<button class="item" data-a="ed-ret" data-id="${r.id}">
+      <div class="main"><div class="t">Resgate: ${esc(r.destino)}</div><div class="s"><span>Retirada de investimento</span></div></div><div class="val num">${fmt(r.valor)}</div></button>`).join('');
 
-  const pp = porPagamento(m, t.parc);
+  const pp = porPagamento(m);
   const maxPP = pp.length ? pp[0][1] : 1;
   const payHtml = pp.map(([id, v]) => {
     const p = pagById(id), tipo = p?.tipo || 'outro';
@@ -567,15 +609,17 @@ function viewMes() {
     corpo: fixasHtml + `<button class="add-row" data-a="add" data-tipo="fixo">${ICON.plus}Adicionar fixa</button>` })}
 
   ${grupo({ id: 'var', titulo: 'Despesas variáveis', cor: '#fbbf24', total: t.variaveis,
-    resumo: itens(m.variaveis.length + t.parc.length),
+    resumo: itens(m.variaveis.length),
     corpo: (varHtml || '<div class="empty">Nenhum gasto variável neste mês.</div>') + `<button class="add-row" data-a="add" data-tipo="gasto">${ICON.plus}Adicionar gasto</button>` })}
 
   ${grupo({ id: 'inv', titulo: 'Poupança e investimentos', cor: '#60a5fa', total: t.invest,
-    resumo: itens(m.invest.length),
-    corpo: (invHtml || '<div class="empty">Nada investido neste mês ainda.</div>') + `<button class="add-row" data-a="add" data-tipo="invest">${ICON.plus}Adicionar investimento</button>` })}
+    resumo: itens(m.invest.length) + (retMes.length ? ` · ${retMes.length === 1 ? '1 retirada' : retMes.length + ' retiradas'}` : ''),
+    corpo: (invHtml || '<div class="empty">Nada investido neste mês ainda.</div>') +
+      `<button class="add-row" data-a="add" data-tipo="invest">${ICON.plus}Adicionar investimento</button>` +
+      `<button class="add-row" data-a="retirar" style="color:var(--red)">${ICON.minus}Fazer retirada</button>` })}
 
   ${grupo({ id: 'renda', titulo: 'Rendas', cor: '#4ade80', total: t.entradas,
-    resumo: m.extras.length ? `Salário + ${itens(m.extras.length).replace('itens', 'extras').replace('item', 'extra')}` : 'Salário',
+    resumo: ['Salário', m.extras.length ? itens(m.extras.length).replace('itens', 'extras').replace('item', 'extra') : '', t.resgate ? 'resgate' : ''].filter(Boolean).join(' + '),
     corpo: rendaHtml + `<button class="add-row" data-a="add" data-tipo="renda">${ICON.plus}Adicionar renda extra</button>` })}
 
   ${grupo({ id: 'pag', titulo: 'Por forma de pagamento', total: t.gastos,
@@ -604,16 +648,67 @@ function viewFixos() {
     <div class="main"><div class="t">${esc(f.nome)}</div><div class="s">${pagChip(f.pag) || '<span>Sem forma de pagamento</span>'}</div></div>
     <div class="val num">${fmt(f.valor)}</div></button>`).join('');
   return `<div class="top"><h1>Gastos fixos</h1></div>
-  <p class="note">Estes gastos entram automaticamente em todo mês novo. Ao alterar aqui, os meses a partir de hoje também são atualizados (exceto itens já marcados como pagos).</p>
+  <p class="note">Os gastos fixos entram automaticamente em todo mês novo. Ao alterar aqui, os meses a partir de hoje também são atualizados (exceto itens já marcados como pagos).</p>
   <div class="sec">
     <div class="sec-h"><h2>Cadastro de fixos</h2><span class="tot num">${fmt(total)}</span></div>
     ${items || '<div class="empty">Nenhum fixo cadastrado.</div>'}
     <button class="add-row" data-a="add-fixo">${ICON.plus}Cadastrar gasto fixo</button>
   </div>
-  ${S.parcelados.length ? `<div class="sec"><div class="sec-h"><h2>Compras parceladas</h2></div>
-    ${S.parcelados.map(p => { const fim = addMonth(p.inicio, p.n - 1); return `<button class="item" data-a="ed-parc" data-id="${p.id}">
-      <div class="main"><div class="t">${esc(p.desc)}</div><div class="s"><span class="chip parc">${p.n}x de ${fmt(p.valor)}</span><span>${shortLabel(p.inicio)} → ${shortLabel(fim)}</span>${pagChip(p.pag)}</div></div>
-      <div class="val num">${fmt(p.valor * p.n)}</div></button>`; }).join('')}</div>` : ''}`;
+  ${viewParcelados()}`;
+}
+
+function viewParcelados() {
+  const grupos = {};
+  Object.keys(S.meses).sort().forEach(k => ['variaveis', 'invest', 'extras'].forEach(l => S.meses[k][l].forEach(it => {
+    if (!it.parc) return;
+    const g = grupos[it.parc.g] ||= { g: it.parc.g, l, desc: it.desc, pag: it.pag, n: it.parc.n, ini: k, fim: k, total: 0, qtd: 0 };
+    g.fim = k; g.total = round(g.total + it.valor); g.qtd++;
+  })));
+  const lista = Object.values(grupos).sort((a, b) => b.ini.localeCompare(a.ini));
+  if (!lista.length) return '';
+  const nomeLista = { variaveis: 'Gasto', invest: 'Investimento', extras: 'Renda' };
+  const hoje = todayKey();
+  return `<div class="sec"><div class="sec-h"><h2>Lançamentos parcelados</h2></div>
+    ${lista.map(g => `<button class="item" data-a="ed-grupo" data-id="${g.g}">
+      <div class="main"><div class="t">${esc(g.desc)}</div><div class="s"><span class="chip parc">${g.n}x</span><span>${nomeLista[g.l]} · ${shortLabel(g.ini)} → ${shortLabel(g.fim)}${g.fim < hoje ? ' · concluído' : ''}</span>${pagChip(g.pag)}</div></div>
+      <div class="val num">${fmt(g.total)}</div></button>`).join('')}</div>`;
+}
+
+function viewInvest() {
+  const c = carteira();
+  const destinos = c.destinos.filter(d => d.aportes || d.retiradas);
+  const max = Math.max(...destinos.map(d => Math.abs(d.saldo)), 1);
+  const movs = c.movs.slice(0, ui.verTodosMovs ? c.movs.length : 12);
+  return `<div class="top"><h1>Investimentos</h1></div>
+  <div class="hero" style="background:#12264a">
+    <div class="k">Total investido</div>
+    <div class="big num">${fmt(c.saldo)}</div>
+    <div class="row">
+      <div><div class="k">Até ${shortLabel(todayKey())}</div><div class="v num">${fmt(c.ateHoje)}</div></div>
+      <div><div class="k">Programado</div><div class="v num">${fmt(c.futuro)}</div></div>
+    </div>
+    <div class="legend" style="margin-top:10px"><span style="--c:#60a5fa">Aportes ${fmt(c.aportes)}</span><span style="--c:#f87171">Retiradas ${fmt(c.retiradas)}</span></div>
+  </div>
+  <div class="btn-row" style="padding:0 0 12px">
+    <button class="btn" data-a="aporte">${ICON.plus}Investir</button>
+    <button class="btn ghost" data-a="retirar" style="color:var(--red)">${ICON.minus}Retirar</button>
+  </div>
+  <div class="sec">
+    <div class="sec-h"><h2>Por destino</h2></div>
+    <div class="sec-sub">Agrupado pelo nome do investimento (ex.: Guardar, Reserva, CDB). Toque para retirar.</div>
+    ${destinos.map(d => `<button class="pay" data-a="retirar" data-dest="${esc(d.nome)}" style="width:100%;text-align:left">
+      <div class="ic" style="background:var(--blue-soft);color:var(--blue)">${ICON.dinheiro}</div>
+      <div class="main"><div style="display:flex;justify-content:space-between;gap:8px"><span class="t" style="font-weight:600">${esc(d.nome)}</span><b class="num">${fmt(d.saldo)}</b></div>
+      <div class="meter"><i style="width:${(Math.max(0, d.saldo) / max * 100).toFixed(1)}%"></i></div>
+      <div class="s" style="font-size:12px;color:var(--muted);margin-top:4px">Aportes ${fmt(d.aportes)}${d.retiradas ? ` · Retiradas ${fmt(d.retiradas)}` : ''}</div></div></button>`).join('') || '<div class="empty">Nenhum investimento lançado.</div>'}
+  </div>
+  <div class="sec">
+    <div class="sec-h"><h2>Movimentações</h2></div>
+    ${movs.map(({ k, tipo, it }) => tipo === 'aporte'
+      ? `<button class="item" data-a="goto" data-k="${k}"><div class="main"><div class="t">${esc(it.desc)}</div><div class="s"><span>${label(k)}${k > todayKey() ? ' · programado' : ''}</span>${parcChip(it)}</div></div><div class="val num" style="color:var(--blue)">+${fmt(it.valor)}</div></button>`
+      : `<button class="item" data-a="ed-ret" data-id="${it.id}" data-k="${k}"><div class="main"><div class="t">Retirada: ${esc(it.destino)}</div><div class="s"><span>${label(k)}</span>${it.desc ? `<span>· ${esc(it.desc)}</span>` : ''}</div></div><div class="val num" style="color:var(--red)">−${fmt(it.valor)}</div></button>`).join('') || '<div class="empty">Sem movimentações.</div>'}
+    ${c.movs.length > movs.length ? `<button class="add-row" data-a="ver-movs">Ver todas (${c.movs.length})</button>` : ''}
+  </div>`;
 }
 
 function viewHist() {
@@ -621,7 +716,7 @@ function viewHist() {
   if (!ks.length) return `<div class="top"><h1>Histórico</h1></div><div class="sec"><div class="empty" style="padding:16px">Nenhum mês criado.</div></div>`;
   const rows = ks.map(k => ({ k, t: totais(S.meses[k], k) }));
   const max = Math.max(...rows.map(r => Math.max(r.t.entradas, r.t.saidas)), 1);
-  const totInv = round(rows.reduce((a, r) => a + r.t.invest, 0));
+  const totInv = carteira().saldo;
   const totSobra = round(rows.reduce((a, r) => a + r.t.sobra, 0));
   const totEnt = round(rows.reduce((a, r) => a + r.t.entradas, 0));
   return `<div class="top"><h1>Histórico</h1></div>
@@ -720,7 +815,7 @@ function fieldHtml(f) {
   if (f.type === 'number') return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" type="number" inputmode="numeric" min="${f.min ?? 1}" max="${f.max ?? 120}" value="${esc(f.value)}">${hint}</div>`;
   return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" autocomplete="off" value="${esc(f.value)}" placeholder="${esc(f.ph || '')}">${hint}</div>`;
 }
-function openSheet({ title, fields, onSave, onDelete, deleteLabel, saveLabel }) {
+function openSheet({ title, fields, onSave, onDelete, deleteLabel, saveLabel, extras = [] }) {
   const ov = document.createElement('div');
   ov.className = 'ov';
   ov.innerHTML = `<form class="sheet" novalidate><div class="grab"></div><h3>${title}</h3>
@@ -728,6 +823,7 @@ function openSheet({ title, fields, onSave, onDelete, deleteLabel, saveLabel }) 
     <div class="sheet-actions">
       <button class="btn" type="submit">${saveLabel || 'Salvar'}</button>
       ${onDelete ? `<button class="btn danger" type="button" data-del>${deleteLabel || 'Excluir'}</button>` : ''}
+      ${extras.map((x, i) => `<button class="btn ${x.cls || 'ghost'}" type="button" data-extra="${i}">${x.label}</button>`).join('')}
       <button class="btn ghost" type="button" data-close>Cancelar</button>
     </div></form>`;
   document.body.appendChild(ov);
@@ -749,6 +845,7 @@ function openSheet({ title, fields, onSave, onDelete, deleteLabel, saveLabel }) 
   applyShow();
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) close(); });
   ov.querySelector('[data-del]')?.addEventListener('click', () => { if (onDelete() !== false) { save(); close(); render(); } });
+  ov.querySelectorAll('[data-extra]').forEach(b => b.addEventListener('click', () => { if (extras[+b.dataset.extra].fn() !== false) { save(); close(); render(); } }));
   form.addEventListener('submit', e => {
     e.preventDefault();
     const vals = {};
@@ -780,7 +877,8 @@ function addLancamento(tipo = 'gasto', pre = {}) {
       { type: 'text', name: 'desc', label: 'Descrição', value: pre.desc || '', ph: 'Ex.: Mercado, Academia, Freela…' },
       { type: 'money', name: 'valor', label: 'Valor', value: pre.valor || '', hint: '' },
       { type: 'pag', name: 'pag', value: pre.pag || '', show: 'tipo=gasto,fixo' },
-      { type: 'number', name: 'parcelas', label: 'Parcelas', value: pre.parcelas || 1, min: 1, show: 'tipo=gasto', hint: 'Se for parcelado, informe o valor de UMA parcela. As próximas aparecem sozinhas nos meses seguintes.' },
+      { type: 'number', name: 'parcelas', label: 'Parcelas', value: pre.parcelas || 1, min: 1, show: 'tipo=gasto,invest,renda', hint: 'Com 2 ou mais, as próximas parcelas são lançadas nos meses seguintes (criando os meses que faltarem).' },
+      { type: 'seg', name: 'modo', label: 'O valor informado é', value: 'parcela', show: 'tipo=gasto,invest,renda', options: [{ v: 'parcela', l: 'De cada parcela' }, { v: 'total', l: 'Total' }] },
       { type: 'check', name: 'recorrente', label: 'Repetir todo mês (cadastrar como fixo)', value: true, show: 'tipo=fixo', hint: 'Desmarcado: entra só em ' + label(k) + '.' },
     ],
     onSave: v => {
@@ -790,22 +888,127 @@ function addLancamento(tipo = 'gasto', pre = {}) {
   });
 }
 
-/* grava um lançamento no mês aberto (usado pelo formulário e pela voz) */
-function lancar(v) {
-  const k = ui.mes, m = S.meses[k];
-      if (v.tipo === 'gasto') {
-        if (v.parcelas > 1) S.parcelados.push({ id: uid(), desc: v.desc, valor: v.valor, n: v.parcelas, inicio: k, pag: v.pag });
-        else m.variaveis.push({ id: uid(), desc: v.desc, valor: v.valor, pag: v.pag });
-      } else if (v.tipo === 'fixo') {
-        if (v.recorrente) {
-          const f = { id: uid(), nome: v.desc, valor: v.valor, pag: v.pag };
-          S.fixos.push(f);
-          const alvos = new Set([...mesesFuturos(), k]);
-          alvos.forEach(mk => S.meses[mk].fixas.push({ id: uid(), ref: f.id, nome: f.nome, valor: f.valor, pag: f.pag, pago: false }));
-        } else m.fixas.push({ id: uid(), ref: null, nome: v.desc, valor: v.valor, pag: v.pag, pago: false });
-      } else if (v.tipo === 'invest') m.invest.push({ id: uid(), desc: v.desc, valor: v.valor });
-      else m.extras.push({ id: uid(), desc: v.desc, valor: v.valor });
-      toast('Lançado em ' + label(k));
+/* grava um lançamento a partir do mês aberto (usado pelo formulário e pela voz) */
+function lancar(v, k = ui.mes) {
+  const m = garantirMes(k);
+  if (v.tipo === 'fixo') {
+    if (v.recorrente) {
+      const f = { id: uid(), nome: v.desc, valor: v.valor, pag: v.pag };
+      S.fixos.push(f);
+      const alvos = new Set([...mesesFuturos(), k]);
+      alvos.forEach(mk => S.meses[mk].fixas.push({ id: uid(), ref: f.id, nome: f.nome, valor: f.valor, pag: f.pag, pago: false }));
+    } else m.fixas.push({ id: uid(), ref: null, nome: v.desc, valor: v.valor, pag: v.pag, pago: false });
+    toast('Lançado em ' + label(k));
+    return;
+  }
+  const lista = { gasto: 'variaveis', invest: 'invest', renda: 'extras' }[v.tipo];
+  const n = Math.max(1, Math.min(120, parseInt(v.parcelas, 10) || 1));
+  // valor de cada parcela; se veio o total, o centavo que sobrar vai na 1ª parcela
+  const cada = v.modo === 'total' ? Math.floor(v.valor / n * 100) / 100 : v.valor;
+  const primeira = v.modo === 'total' ? round(v.valor - cada * (n - 1)) : v.valor;
+  const g = n > 1 ? uid() : null;
+  const criados = [];
+  for (let i = 0; i < n; i++) {
+    const mk = addMonth(k, i);
+    if (!S.meses[mk]) criados.push(mk);
+    const it = { id: uid(), desc: v.desc, valor: i === 0 ? primeira : cada };
+    if (lista === 'variaveis') it.pag = v.pag || '';
+    if (g) it.parc = { g, i: i + 1, n };
+    garantirMes(mk)[lista].push(it);
+  }
+  toast(n > 1 ? `${n} parcelas lançadas: ${shortLabel(k)} a ${shortLabel(addMonth(k, n - 1))}${criados.length ? ` (${criados.length} ${criados.length === 1 ? 'mês criado' : 'meses criados'})` : ''}` : 'Lançado em ' + label(k));
+}
+
+/* ---- parcelas: editar uma ou todas ---- */
+function editarItem(lista, id, titulo, comPag) {
+  const m = S.meses[ui.mes], it = m[lista].find(x => x.id === id); if (!it) return;
+  if (!it.parc) return editSimple(lista, id, titulo, comPag);
+  const { g, i, n } = it.parc;
+  const seguintes = () => parcelasDoGrupo(g).filter(p => p.it.parc.i >= i);
+  openSheet({
+    title: `${titulo} · parcela ${i}/${n}`,
+    fields: [
+      { type: 'text', name: 'desc', label: 'Descrição', value: it.desc },
+      { type: 'money', name: 'valor', label: 'Valor da parcela', value: it.valor },
+      ...(comPag ? [{ type: 'pag', name: 'pag', value: it.pag }] : []),
+      { type: 'check', name: 'todas', label: i < n ? (i + 1 === n ? `Aplicar também à parcela ${n}` : `Aplicar também às parcelas seguintes (${i + 1} a ${n})`) : 'Aplicar às outras parcelas', value: i < n },
+    ],
+    onSave: v => {
+      if (!need(v.desc, 'Informe a descrição')) return false;
+      const alvo = v.todas ? (i < n ? seguintes() : parcelasDoGrupo(g)) : [{ it }];
+      alvo.forEach(p => { p.it.desc = v.desc; p.it.valor = v.valor; if (comPag) p.it.pag = v.pag; });
+    },
+    onDelete: () => { if (!confirm(`Excluir só a parcela ${i}/${n}?`)) return false; m[lista] = m[lista].filter(x => x.id !== id); },
+    deleteLabel: 'Excluir só esta parcela',
+    extras: [{ label: `Excluir todas as ${n} parcelas`, cls: 'danger', fn: () => excluirGrupo(g) }],
+  });
+}
+function excluirGrupo(g) {
+  const ps = parcelasDoGrupo(g); if (!ps.length) return;
+  if (!confirm(`Excluir todas as parcelas de "${ps[0].it.desc}" (${ps.length} meses)?`)) return false;
+  ps.forEach(p => { S.meses[p.k][p.l] = S.meses[p.k][p.l].filter(x => x.id !== p.it.id); });
+  toast('Parcelas excluídas');
+}
+function editGrupo(g) {
+  const ps = parcelasDoGrupo(g); if (!ps.length) return;
+  const f = ps[0], comPag = f.l === 'variaveis';
+  openSheet({
+    title: 'Lançamento parcelado',
+    fields: [
+      { type: 'text', name: 'desc', label: 'Descrição', value: f.it.desc },
+      { type: 'money', name: 'valor', label: 'Valor de cada parcela', value: f.it.valor, hint: `${ps.length} parcelas: ${shortLabel(ps[0].k)} a ${shortLabel(ps[ps.length - 1].k)}. Muda todas.` },
+      ...(comPag ? [{ type: 'pag', name: 'pag', value: f.it.pag }] : []),
+    ],
+    onSave: v => { if (!need(v.desc, 'Informe a descrição')) return false; ps.forEach(p => { p.it.desc = v.desc; p.it.valor = v.valor; if (comPag) p.it.pag = v.pag; }); },
+    extras: [{ label: 'Excluir todas as parcelas', cls: 'danger', fn: () => excluirGrupo(g) }],
+  });
+}
+
+/* ---- investimentos: aporte e retirada ---- */
+function nomesDestinos() { return carteira().destinos.map(d => d.nome); }
+function novoAporte() {
+  openSheet({
+    title: 'Novo investimento', saveLabel: 'Investir',
+    fields: [
+      { type: 'text', name: 'desc', label: 'Destino / descrição', value: nomesDestinos()[0] || 'Guardar', ph: 'Ex.: Reserva, CDB, Tesouro', hint: nomesDestinos().length ? 'Já usados: ' + nomesDestinos().map(esc).join(', ') : '' },
+      { type: 'money', name: 'valor', label: 'Valor' },
+      { type: 'month', name: 'mes', label: 'Mês', value: S.meses[ui.mes] ? ui.mes : todayKey() },
+      { type: 'number', name: 'parcelas', label: 'Repetir por quantos meses', value: 1, min: 1, hint: 'Ex.: 6 = investe esse valor neste mês e nos próximos 5.' },
+    ],
+    onSave: v => {
+      if (!need(v.desc, 'Informe o destino') || !need(v.valor > 0, 'Informe o valor') || !need(/^\d{4}-\d{2}$/.test(v.mes), 'Informe o mês')) return false;
+      lancar({ tipo: 'invest', desc: v.desc, valor: v.valor, parcelas: v.parcelas, modo: 'parcela' }, v.mes);
+    },
+  });
+}
+function retirada(destinoSel, id, pre = {}) {
+  const c = carteira();
+  let r = null, mesR = null;
+  if (id) for (const k of Object.keys(S.meses)) { const x = (S.meses[k].retiradas || []).find(y => y.id === id); if (x) { r = x; mesR = k; break; } }
+  const opts = c.destinos.map(d => ({ v: d.nome, l: `${d.nome} (saldo ${fmt(d.saldo)})` }));
+  const dest = r ? r.destino : (destinoSel || pre.destino || (opts[0] && opts[0].v) || '');
+  if (dest && !opts.find(o => o.v === dest)) opts.unshift({ v: dest, l: dest });
+  if (!opts.length) { toast('Nenhum investimento para retirar'); return; }
+  openSheet({
+    title: r ? 'Editar retirada' : 'Retirar investimento', saveLabel: r ? 'Salvar' : 'Retirar',
+    fields: [
+      { type: 'select', name: 'destino', label: 'De onde', value: dest, options: opts },
+      { type: 'money', name: 'valor', label: 'Valor', value: r ? r.valor : (pre.valor || '') },
+      { type: 'text', name: 'desc', label: 'Motivo (opcional)', value: r ? r.desc : (pre.desc || ''), ph: 'Ex.: conserto do carro' },
+      { type: 'month', name: 'mes', label: 'Mês', value: mesR || (S.meses[ui.mes] ? ui.mes : todayKey()) },
+      { type: 'check', name: 'entra', label: 'Somar às entradas do mês (o dinheiro volta para o caixa)', value: r ? r.entra : true },
+    ],
+    onSave: v => {
+      if (!need(v.valor > 0, 'Informe o valor') || !need(/^\d{4}-\d{2}$/.test(v.mes), 'Informe o mês')) return false;
+      const saldo = (carteira().destinos.find(d => d.nome === v.destino)?.saldo || 0) + (r && r.destino === v.destino ? r.valor : 0);
+      if (v.valor > saldo + 0.001 && !confirm(`O valor é maior que o saldo de ${v.destino} (${fmt(saldo)}). Retirar mesmo assim?`)) return false;
+      if (r) S.meses[mesR].retiradas = S.meses[mesR].retiradas.filter(x => x.id !== r.id);
+      const item = { id: r ? r.id : uid(), destino: v.destino, valor: v.valor, desc: v.desc, entra: v.entra };
+      garantirMes(v.mes).retiradas.push(item);
+      toast(r ? 'Retirada atualizada' : `Retirada de ${fmt(v.valor)} registrada`);
+    },
+    onDelete: r ? () => { if (!confirm('Excluir esta retirada?')) return false; S.meses[mesR].retiradas = S.meses[mesR].retiradas.filter(x => x.id !== r.id); } : null,
+  });
 }
 
 /* ============ lançamento por voz ============ */
@@ -840,7 +1043,7 @@ function aliasesPag(p) {
   ({ pix: ['pix'], boleto: ['boleto'], debito: ['debito', 'debito em conta'], dinheiro: ['dinheiro', 'especie'] }[p.tipo] || []).forEach(x => al.add(x));
   return [...al].filter(Boolean);
 }
-const STRONG = new Set('gastei gasto gastar gasta paguei pago pagar paga pagamento comprei compra comprar compro foi reais real r$ centavos centavo x vezes vez parcelas parcela parcelado parcelada parcelei cartao credito debito investi investir investimento investimentos aplicacao aplicacoes apliquei guardei guardar poupanca recebi ganhei receber recebido renda extra entrou fixo fixa todo toda mes mensal mensalmente hoje ontem coloca coloque colocar lanca lance lancar lancamento adiciona adicione adicionar anota anote anotar conto contos pila pilas valor deu ficou custou que eu ai tipo salario quitei esse essa este esta nesse nessa neste nesta agora'.split(' '));
+const STRONG = new Set('gastei gasto gastar gasta paguei pago pagar paga pagamento comprei compra comprar compro foi reais real r$ centavos centavo x vezes vez parcelas parcela parcelado parcelada parcelei cartao credito debito investi investir investimento investimentos aplicacao aplicacoes apliquei guardei guardar poupanca recebi ganhei receber recebido renda extra entrou fixo fixa todo toda mes mensal mensalmente hoje ontem coloca coloque colocar lanca lance lancar lancamento adiciona adicione adicionar anota anote anotar conto contos pila pilas valor deu ficou custou que eu ai tipo salario quitei esse essa este esta nesse nessa neste nesta agora retirei resgatei resgate resgatar retirada retirar saquei sacar tirei'.split(' '));
 const WEAK = new Set('de do da dos das no na nos nas com o a os as e em para pra meu minha meus minhas um uma pelo pela por num numa via'.split(' '));
 
 function interpretar(txt) {
@@ -878,7 +1081,14 @@ function interpretar(txt) {
   const pagWords = new Set(pagAlias.split(' ').filter(Boolean));
 
   // tipo
-  if (/\s(salario)\s/.test(t) && !/\sextra\s/.test(t)) r.acao = 'salario';
+  if (/\s(retirei|resgatei|resgate|resgatar|retirada|retirar|saquei|sacar|tirei)\s/.test(t)) {
+    r.acao = 'retirada';
+    let achou = '';
+    carteira().destinos.forEach(d => { const n = chaveDestino(d.nome); if (n && new RegExp(`\\s${escRe(n)}\\s`).test(t) && n.length > chaveDestino(achou).length) achou = d.nome; });
+    r.destino = achou || (carteira().destinos[0] || {}).nome || '';
+    chaveDestino(r.destino).split(' ').forEach(w => pagWords.add(w));   // não repete o destino na descrição
+  }
+  else if (/\s(salario)\s/.test(t) && !/\sextra\s/.test(t)) r.acao = 'salario';
   else if (/\s(invest\w*|apliquei|aplicacao|guardei|guardar|poupanca|reserva)\s/.test(t)) r.tipo = 'invest';
   else if (/\s(recebi|ganhei|renda|entrou|freela|bonus|recebido)\s/.test(t)) r.tipo = 'renda';
   else if (/\s(fixo|fixa|todo mes|toda mes|mensal|mensalmente)\s/.test(t)) r.tipo = 'fixo';
@@ -930,7 +1140,7 @@ function abrirVoz() {
       <button class="btn ghost" type="button" data-close>Cancelar</button>
     </div>
     <div class="voz-ex"><div>Exemplos (toque para testar):</div>
-      ${['gastei 32,90 na farmácia no pix', 'celular 1.200 reais em 10 vezes no cartão NU', 'investi 500 reais na reserva de emergência', 'recebi 300 de freela', 'paguei o aluguel']
+      ${['gastei 32,90 na farmácia no pix', 'celular 1.200 reais em 10 vezes no cartão NU', 'investi 500 reais na reserva de emergência', 'recebi 300 de freela', 'paguei o aluguel', 'retirei 1000 do Guardar']
         .map(e => `<button type="button" class="chip" data-ex="${esc(e)}">${esc(e)}</button>`).join('')}
     </div></div>`;
   document.body.appendChild(ov);
@@ -951,6 +1161,10 @@ function abrirVoz() {
       const v = r.valor || r.fixa.valor;
       html = linha('Ação', 'Marcar como paga') + linha('Conta fixa', esc(r.fixa.nome)) + linha('Valor', fmt(v));
       ok.textContent = r.fixa.pago ? 'Já está paga' : 'Marcar como paga'; pode = !r.fixa.pago;
+    } else if (r.acao === 'retirada') {
+      html = linha('Ação', 'Retirar investimento') + linha('De onde', esc(r.destino || 'nenhum investimento')) +
+        linha('Valor', r.valor ? fmt(r.valor) : '<i style="color:var(--red)">não entendi</i>') + linha('Mês', label(ui.mes)) + linha('Entra no caixa do mês', 'Sim');
+      ok.textContent = 'Retirar'; pode = r.valor > 0 && !!r.destino;
     } else if (r.acao === 'salario') {
       html = linha('Ação', 'Atualizar salário') + linha('Mês', label(ui.mes)) + linha('Valor', r.valor ? fmt(r.valor) : '<i style="color:var(--red)">não entendi</i>');
       ok.textContent = 'Atualizar salário'; pode = r.valor > 0;
@@ -992,6 +1206,11 @@ function abrirVoz() {
     if (!r || ok.disabled) return;
     if (r.acao === 'pagar-fixa') { r.fixa.pago = true; if (r.valor) r.fixa.valor = r.valor; toast(r.fixa.nome + ' marcada como paga'); }
     else if (r.acao === 'salario') { m.salario = r.valor; toast('Salário atualizado'); }
+    else if (r.acao === 'retirada') {
+      const desc = r.desc && !/^(Gasto|Investimento|Renda extra)$/.test(r.desc) ? r.desc : '';
+      m.retiradas.push({ id: uid(), destino: r.destino, valor: r.valor, desc, entra: true });
+      toast(`Retirada de ${fmt(r.valor)} registrada`);
+    }
     else lancar(r);
     save(); fechar(); render();
   });
@@ -1000,6 +1219,7 @@ function abrirVoz() {
     setTimeout(() => {
       if (r.acao === 'pagar-fixa') editFixaMes(r.fixa.id);
       else if (r.acao === 'salario') editSalario(r.valor);
+      else if (r.acao === 'retirada') retirada(r.destino, null, { valor: r.valor });
       else addLancamento(r.tipo, r);
     }, 220);
   });
@@ -1064,22 +1284,6 @@ function editFixo(id) {
   });
 }
 
-function editParcelado(id) {
-  const p = S.parcelados.find(x => x.id === id); if (!p) return;
-  openSheet({
-    title: 'Compra parcelada',
-    fields: [
-      { type: 'text', name: 'desc', label: 'Descrição', value: p.desc },
-      { type: 'money', name: 'valor', label: 'Valor da parcela', value: p.valor },
-      { type: 'number', name: 'n', label: 'Número de parcelas', value: p.n },
-      { type: 'month', name: 'inicio', label: 'Mês da 1ª parcela', value: p.inicio },
-      { type: 'pag', name: 'pag', value: p.pag },
-    ],
-    onSave: v => { if (!need(v.desc, 'Informe a descrição') || !need(/^\d{4}-\d{2}$/.test(v.inicio), 'Informe o mês da 1ª parcela')) return false; v.n = Math.max(1, v.n); Object.assign(p, v); },
-    onDelete: () => { if (!confirm('Excluir todas as parcelas de "' + p.desc + '"?')) return false; S.parcelados = S.parcelados.filter(x => x.id !== id); },
-    deleteLabel: 'Excluir compra (todas as parcelas)',
-  });
-}
 
 function editPag(id) {
   const novo = !id, p = novo ? { id: uid(), nome: '', tipo: 'cartao' } : pagById(id); if (!p) return;
@@ -1091,7 +1295,7 @@ function editPag(id) {
       if (!confirm('Excluir "' + p.nome + '"? Os lançamentos com ela ficarão como "Não informado".')) return false;
       S.pagamentos = S.pagamentos.filter(x => x.id !== id);
       const clear = x => { if (x.pag === id) x.pag = ''; };
-      S.fixos.forEach(clear); S.parcelados.forEach(clear);
+      S.fixos.forEach(clear);
       Object.values(S.meses).forEach(m => { m.fixas.forEach(clear); m.variaveis.forEach(clear); });
     },
   });
@@ -1112,7 +1316,7 @@ $('#importFile').addEventListener('change', async e => {
     const data = JSON.parse(await file.text());
     if (!data || typeof data.meses !== 'object' || !Array.isArray(data.fixos)) throw new Error();
     if (!confirm('Substituir os dados deste aparelho pelo backup?')) return;
-    S = data; S.parcelados ||= []; S.pagamentos ||= []; save();
+    S = data; normalize(); save();
     ui.mes = mesInicial(); ui.tab = 'mes'; render(); toast('Backup importado');
   } catch (err) { toast('Arquivo de backup inválido'); }
 });
@@ -1130,10 +1334,14 @@ document.addEventListener('click', e => {
     case 'add': if (m) addLancamento(b.dataset.tipo); break;
     case 'pago': { const f = m.fixas.find(x => x.id === id); if (f) { f.pago = !f.pago; save(); render(); } break; }
     case 'ed-fixa': editFixaMes(id); break;
-    case 'ed-var': editSimple('variaveis', id, 'Gasto variável', true); break;
-    case 'ed-inv': editSimple('invest', id, 'Investimento', false); break;
-    case 'ed-extra': editSimple('extras', id, 'Renda extra', false); break;
-    case 'ed-parc': editParcelado(id); break;
+    case 'ed-var': editarItem('variaveis', id, 'Gasto variável', true); break;
+    case 'ed-inv': editarItem('invest', id, 'Investimento', false); break;
+    case 'ed-extra': editarItem('extras', id, 'Renda extra', false); break;
+    case 'ed-grupo': editGrupo(id); break;
+    case 'ed-ret': retirada(null, id); break;
+    case 'retirar': retirada(b.dataset.dest); break;
+    case 'aporte': novoAporte(); break;
+    case 'ver-movs': ui.verTodosMovs = true; render(); break;
     case 'ed-sal': editSalario(); break;
     case 'voz': if (m) abrirVoz(); break;
     case 'ed-salpadrao': openSheet({ title: 'Salário fixo padrão', fields: [{ type: 'money', name: 'salario', label: 'Valor', value: S.salarioPadrao }, { type: 'check', name: 'aplicar', label: 'Aplicar também aos meses já criados a partir de hoje', value: false }], onSave: v => { S.salarioPadrao = v.salario; if (v.aplicar) mesesFuturos().forEach(k => S.meses[k].salario = v.salario); toast('Salário atualizado'); } }); break;
