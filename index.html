@@ -131,7 +131,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .mic-big svg{width:36px;height:36px}
 .mic-big.on{animation:pulso 1.2s infinite}
 @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(22,163,74,.55)}100%{box-shadow:0 0 0 24px rgba(22,163,74,0)}}
-.voz-status{text-align:center;color:var(--muted);font-size:13px;margin-bottom:10px;min-height:18px}
+.voz-status{text-align:center;color:var(--muted);font-size:13px;margin-bottom:10px;min-height:18px;line-height:1.45}
+.mic-big.kb{width:64px;height:64px;background:var(--card2);color:var(--accent);border:1px solid var(--line)}
+.mic-big.kb svg{width:28px;height:28px}
+.sheet textarea.destaque{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .sheet textarea{width:100%;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text);padding:12px;font:inherit;font-size:16px;outline:none;resize:none}
 .sheet textarea:focus{border-color:var(--accent)}
 .prev{border:1px solid var(--line);border-radius:14px;background:var(--card2);margin-bottom:12px;overflow:hidden}
@@ -244,7 +247,8 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 };
 ICON.cartao = ICON.card;
-ICON.minus = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>';
+ICON.keyboard = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 15h6"/></svg>';
+ICON.minus ='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>';
 ICON.mic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const TIPOS_PAG = [{ v: 'cartao', l: 'Cartão de crédito' }, { v: 'pix', l: 'Pix' }, { v: 'boleto', l: 'Boleto' }, { v: 'debito', l: 'Débito / conta' }, { v: 'dinheiro', l: 'Dinheiro' }, { v: 'outro', l: 'Outro' }];
 
@@ -1179,20 +1183,44 @@ function abrirVoz() {
     prev.innerHTML = `<div class="prev">${html}</div>`;
     ok.disabled = !pode; ok.style.opacity = pode ? 1 : .5;
   }
-  function parar() { try { rec && rec.abort(); } catch (e) {} ouvindo = false; mic.classList.remove('on'); }
+  /* No app instalado na tela de início do iPhone, o iOS inicia o reconhecimento mas não entrega o áudio.
+     Nesse caso (ou se nada for ouvido em alguns segundos) usamos o ditado do teclado, que funciona sempre. */
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const instalado = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  let teclado = !SR || (isIOS && instalado);
+  let vigia = null, ouviuAlgo = false;
+  function modoTeclado(motivo) {
+    teclado = true; parar();
+    mic.classList.add('kb'); mic.innerHTML = ICON.keyboard; mic.setAttribute('aria-label', 'Abrir teclado para ditar');
+    st.innerHTML = (motivo ? `<span style="color:var(--amber)">${motivo}</span><br>` : '') +
+      'Toque no campo abaixo e depois no <b>🎤 do teclado</b> (canto inferior) para falar.';
+    ta.classList.add('destaque');
+  }
+  function parar() { clearTimeout(vigia); try { rec && rec.abort(); } catch (e) {} ouvindo = false; mic.classList.remove('on'); }
   function ouvir() {
-    if (!SR) { st.textContent = 'Toque no campo abaixo e use o microfone do teclado para ditar.'; ta.focus(); return; }
+    if (teclado) { ta.focus(); return; }
     if (ouvindo) { try { rec.stop(); } catch (e) {} return; }
+    ouviuAlgo = false;
     rec = new SR(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     rec.onstart = () => { ouvindo = true; mic.classList.add('on'); st.textContent = 'Ouvindo… fale o lançamento'; };
-    rec.onresult = e => { let s = ''; for (const res of e.results) s += res[0].transcript; ta.value = s; atualizar(); };
+    rec.onresult = e => { ouviuAlgo = true; clearTimeout(vigia); let s = ''; for (const res of e.results) s += res[0].transcript; ta.value = s; atualizar(); };
     rec.onerror = e => {
-      st.textContent = (e.error === 'not-allowed' || e.error === 'service-not-allowed')
-        ? 'O microfone não está liberado aqui. Toque no campo abaixo e use o microfone do teclado.'
-        : e.error === 'no-speech' ? 'Não ouvi nada. Toque no microfone para tentar de novo.' : 'Não consegui ouvir. Toque no microfone para tentar de novo.';
+      clearTimeout(vigia);
+      if (e.error === 'aborted') return;
+      if (e.error === 'no-speech') { st.textContent = 'Não ouvi nada. Toque no microfone para tentar de novo.'; return; }
+      modoTeclado(e.error === 'not-allowed' ? 'O acesso ao microfone foi negado.' : 'O reconhecimento de voz não está disponível aqui.');
     };
-    rec.onend = () => { ouvindo = false; mic.classList.remove('on'); if (/Ouvindo/.test(st.textContent)) st.textContent = ta.value ? 'Confira abaixo e toque em Lançar.' : 'Toque no microfone para falar.'; };
-    try { rec.start(); } catch (e) { st.textContent = 'Toque no campo abaixo e use o microfone do teclado.'; }
+    rec.onend = () => {
+      clearTimeout(vigia); ouvindo = false; mic.classList.remove('on');
+      if (teclado) return;
+      if (!ouviuAlgo && /Ouvindo/.test(st.textContent)) return modoTeclado('Não consegui captar o áudio por aqui.');
+      if (/Ouvindo/.test(st.textContent)) st.textContent = 'Confira abaixo e toque em Lançar.';
+    };
+    // vigia: conta a partir do pedido, mesmo que o reconhecimento nunca confirme o início
+    clearTimeout(vigia);
+    vigia = setTimeout(() => { if (!ouviuAlgo) modoTeclado('O microfone deste aparelho não respondeu.'); }, 6000);
+    ouvindo = true; mic.classList.add('on'); st.textContent = 'Ouvindo… fale o lançamento';
+    try { rec.start(); } catch (e) { modoTeclado('O reconhecimento de voz não iniciou.'); }
   }
   const fechar = () => { parar(); ov.classList.remove('show'); document.body.style.overflow = ''; setTimeout(() => ov.remove(), 200); };
 
@@ -1223,8 +1251,12 @@ function abrirVoz() {
       else addLancamento(r.tipo, r);
     }, 220);
   });
+  ta.addEventListener('focus', () => ta.classList.remove('destaque'));
   atualizar();
-  ouvir();
+  if (teclado) {
+    modoTeclado('');
+    ta.focus();   // ainda dentro do toque no botão: o iPhone já abre o teclado
+  } else ouvir();
 }
 
 function editSalario(valor) {
