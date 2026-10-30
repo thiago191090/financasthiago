@@ -125,6 +125,23 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .nav button.on{color:var(--accent);font-weight:650}
 .fab{position:fixed;right:max(16px,calc(50% - 264px));bottom:calc(78px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:18px;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(22,163,74,.35);z-index:21}
 .fab svg{width:26px;height:26px}
+.fab-mic{position:fixed;right:calc(max(16px,calc(50% - 264px)) + 4px);bottom:calc(144px + env(safe-area-inset-bottom));width:48px;height:48px;border-radius:16px;background:var(--card);color:var(--accent);border:1px solid var(--line);display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.12);z-index:21}
+.fab-mic svg{width:22px;height:22px}
+.mic-big{width:84px;height:84px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;margin:4px auto 8px}
+.mic-big svg{width:36px;height:36px}
+.mic-big.on{animation:pulso 1.2s infinite}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(22,163,74,.55)}100%{box-shadow:0 0 0 24px rgba(22,163,74,0)}}
+.voz-status{text-align:center;color:var(--muted);font-size:13px;margin-bottom:10px;min-height:18px}
+.sheet textarea{width:100%;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text);padding:12px;font:inherit;font-size:16px;outline:none;resize:none}
+.sheet textarea:focus{border-color:var(--accent)}
+.prev{border:1px solid var(--line);border-radius:14px;background:var(--card2);margin-bottom:12px;overflow:hidden}
+.prev>div{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:14px}
+.prev>div:first-child{border-top:0}
+.prev span{color:var(--muted)}
+.prev b{text-align:right}
+.voz-ex{margin-top:14px;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px}
+.voz-ex>div{width:100%}
+.voz-ex .chip{font-size:12px;padding:4px 9px}
 
 /* sheet */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}
@@ -162,6 +179,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 <body>
 <div class="wrap" id="app"></div>
 
+<button class="fab-mic" id="fabMic" aria-label="Lançar por voz" data-a="voz">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+</button>
 <button class="fab" id="fab" aria-label="Novo lançamento" data-a="add">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
 </button>
@@ -192,6 +212,7 @@ function parseMoney(s) {
   s = String(s || '').trim().replace(/[R$\s]/g, '');
   if (!s) return 0;
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');   // "1.200" = mil e duzentos
   else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
   const n = parseFloat(s);
   return isNaN(n) ? 0 : round(n);
@@ -222,6 +243,7 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 };
 ICON.cartao = ICON.card;
+ICON.mic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const TIPOS_PAG = [{ v: 'cartao', l: 'Cartão de crédito' }, { v: 'pix', l: 'Pix' }, { v: 'boleto', l: 'Boleto' }, { v: 'debito', l: 'Débito / conta' }, { v: 'dinheiro', l: 'Dinheiro' }, { v: 'outro', l: 'Outro' }];
 
 /* ============ dados iniciais (vindos da planilha) ============ */
@@ -455,7 +477,7 @@ function mesInicial() {
 /* ============ telas ============ */
 function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#fab').style.display = (ui.tab === 'mes' && S.meses[ui.mes]) ? '' : 'none';
+  $('#fab').style.display = $('#fabMic').style.display = (ui.tab === 'mes' && S.meses[ui.mes]) ? '' : 'none';
   const v = { mes: viewMes, fixos: viewFixos, hist: viewHist, config: viewConfig }[ui.tab];
   $('#app').innerHTML = v();
 }
@@ -749,20 +771,28 @@ function openSheet({ title, fields, onSave, onDelete, deleteLabel, saveLabel }) 
 /* ============ ações ============ */
 function need(v, msg) { if (!v) { toast(msg); return false; } return true; }
 
-function addLancamento(tipo = 'gasto') {
-  const k = ui.mes, m = S.meses[k];
+function addLancamento(tipo = 'gasto', pre = {}) {
+  const k = ui.mes;
   openSheet({
     title: 'Novo lançamento', saveLabel: 'Lançar',
     fields: [
       { type: 'seg', name: 'tipo', value: tipo, options: [{ v: 'gasto', l: 'Gasto' }, { v: 'fixo', l: 'Fixo' }, { v: 'invest', l: 'Investir' }, { v: 'renda', l: 'Renda' }] },
-      { type: 'text', name: 'desc', label: 'Descrição', ph: 'Ex.: Mercado, Academia, Freela…' },
-      { type: 'money', name: 'valor', label: 'Valor', hint: '' },
-      { type: 'pag', name: 'pag', show: 'tipo=gasto,fixo' },
-      { type: 'number', name: 'parcelas', label: 'Parcelas', value: 1, min: 1, show: 'tipo=gasto', hint: 'Se for parcelado, informe o valor de UMA parcela. As próximas aparecem sozinhas nos meses seguintes.' },
+      { type: 'text', name: 'desc', label: 'Descrição', value: pre.desc || '', ph: 'Ex.: Mercado, Academia, Freela…' },
+      { type: 'money', name: 'valor', label: 'Valor', value: pre.valor || '', hint: '' },
+      { type: 'pag', name: 'pag', value: pre.pag || '', show: 'tipo=gasto,fixo' },
+      { type: 'number', name: 'parcelas', label: 'Parcelas', value: pre.parcelas || 1, min: 1, show: 'tipo=gasto', hint: 'Se for parcelado, informe o valor de UMA parcela. As próximas aparecem sozinhas nos meses seguintes.' },
       { type: 'check', name: 'recorrente', label: 'Repetir todo mês (cadastrar como fixo)', value: true, show: 'tipo=fixo', hint: 'Desmarcado: entra só em ' + label(k) + '.' },
     ],
     onSave: v => {
       if (!need(v.desc, 'Informe a descrição') || !need(v.valor > 0 || v.tipo === 'fixo', 'Informe o valor')) return false;
+      lancar(v);
+    },
+  });
+}
+
+/* grava um lançamento no mês aberto (usado pelo formulário e pela voz) */
+function lancar(v) {
+  const k = ui.mes, m = S.meses[k];
       if (v.tipo === 'gasto') {
         if (v.parcelas > 1) S.parcelados.push({ id: uid(), desc: v.desc, valor: v.valor, n: v.parcelas, inicio: k, pag: v.pag });
         else m.variaveis.push({ id: uid(), desc: v.desc, valor: v.valor, pag: v.pag });
@@ -776,8 +806,210 @@ function addLancamento(tipo = 'gasto') {
       } else if (v.tipo === 'invest') m.invest.push({ id: uid(), desc: v.desc, valor: v.valor });
       else m.extras.push({ id: uid(), desc: v.desc, valor: v.valor });
       toast('Lançado em ' + label(k));
-    },
+}
+
+/* ============ lançamento por voz ============ */
+const NUMW = { zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19, vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60, setenta: 70, oitenta: 80, noventa: 90, cem: 100, cento: 100, duzentos: 200, duzentas: 200, trezentos: 300, trezentas: 300, quatrocentos: 400, quinhentos: 500, seiscentos: 600, setecentos: 700, oitocentos: 800, novecentos: 900 };
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/* "mil e duzentos e cinquenta" -> "1250" */
+function palavrasParaNumeros(s) {
+  const tk = s.split(' '), out = [];
+  const isN = w => w in NUMW || w === 'mil';
+  for (let i = 0; i < tk.length; i++) {
+    const w = tk[i];
+    if (!isN(w) || ((w === 'um' || w === 'uma') && tk[i + 1] !== 'mil')) { out.push(w); continue; }
+    let total = 0, cur = 0, j = i;
+    while (j < tk.length) {
+      const x = tk[j];
+      if (x in NUMW && !((x === 'um' || x === 'uma') && j > i && tk[j - 1] !== 'e')) { cur += NUMW[x]; j++; }
+      else if (x === 'mil') { total += (cur || 1) * 1000; cur = 0; j++; }
+      else if (x === 'e' && j > i && tk[j + 1] in NUMW) j++;
+      else break;
+    }
+    out.push(String(total + cur)); i = j - 1;
+  }
+  return out.join(' ');
+}
+function aliasesPag(p) {
+  const n = norm(p.nome).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const al = new Set([n]);
+  const sem = n.replace(/^cartao( de credito)? /, '');
+  al.add(sem);
+  if (/\bnu\b/.test(n)) { al.add(n.replace(/\bnu\b/, 'nubank')); al.add(sem.replace(/\bnu\b/, 'nubank')); }
+  ({ pix: ['pix'], boleto: ['boleto'], debito: ['debito', 'debito em conta'], dinheiro: ['dinheiro', 'especie'] }[p.tipo] || []).forEach(x => al.add(x));
+  return [...al].filter(Boolean);
+}
+const STRONG = new Set('gastei gasto gastar gasta paguei pago pagar paga pagamento comprei compra comprar compro foi reais real r$ centavos centavo x vezes vez parcelas parcela parcelado parcelada parcelei cartao credito debito investi investir investimento investimentos aplicacao aplicacoes apliquei guardei guardar poupanca recebi ganhei receber recebido renda extra entrou fixo fixa todo toda mes mensal mensalmente hoje ontem coloca coloque colocar lanca lance lancar lancamento adiciona adicione adicionar anota anote anotar conto contos pila pilas valor deu ficou custou que eu ai tipo salario quitei esse essa este esta nesse nessa neste nesta agora'.split(' '));
+const WEAK = new Set('de do da dos das no na nos nas com o a os as e em para pra meu minha meus minhas um uma pelo pela por num numa via'.split(' '));
+
+function interpretar(txt) {
+  const m = S.meses[ui.mes];
+  let t = norm(txt).replace(/[!?;:"]/g, ' ').replace(/r\$\s*/g, 'r$').replace(/\s+/g, ' ').trim();
+  t = palavrasParaNumeros(t);
+  t = t.replace(/r\$([\d.,]+)/g, '$1 reais');
+  t = t.replace(/(\d+)\s*(?:reais|real)?\s*e\s*(\d{1,2})\s*centavos?/g, (_, a, b) => `${a},${b.padStart(2, '0')} reais`);
+  t = ' ' + t + ' ';
+  const r = { acao: 'lancar', tipo: 'gasto', desc: '', valor: 0, total: 0, pag: '', parcelas: 1, recorrente: true };
+
+  // parcelas: "em 10 vezes", "10x de 120", "parcelado em 3"
+  let semParc = t;
+  const pm = t.match(/(?:parcelad[oa] em |em )?(\d{1,2})\s*(?:x|vezes|parcelas?)(?=\s)(?:\s+de\s+([\d.,]+))?/) || t.match(/parcelad[oa] em (\d{1,2})(?=\s)/);
+  if (pm && +pm[1] > 1) { r.parcelas = Math.min(120, +pm[1]); semParc = t.replace(pm[0], ' '); }
+
+  // valor: prefere número com "reais"; senão o maior
+  let melhor = null;
+  for (const mm of semParc.matchAll(/(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(\s*(?:reais|real|conto|contos|pila|pilas)\b)?/g)) {
+    const c = { v: parseMoney(mm[1]), s: mm[2] ? 1 : 0 };
+    if (!melhor || c.s > melhor.s || (c.s === melhor.s && c.v > melhor.v)) melhor = c;
+  }
+  const valorDito = melhor ? melhor.v : 0;
+  if (r.parcelas > 1) {
+    if (pm && pm[2]) { r.valor = parseMoney(pm[2]); r.total = round(r.valor * r.parcelas); }
+    else { r.total = valorDito; r.valor = round(valorDito / r.parcelas); }
+  } else r.valor = valorDito;
+
+  // forma de pagamento: o nome mais específico que aparecer na frase
+  let pagAlias = '';
+  S.pagamentos.forEach(p => aliasesPag(p).forEach(a => {
+    if (new RegExp(`\\s${escRe(a)}\\s`).test(t) && a.length > pagAlias.length) { pagAlias = a; r.pag = p.id; }
+  }));
+  if (!r.pag && /\s(cartao|credito)\s/.test(t)) { const cs = S.pagamentos.filter(p => p.tipo === 'cartao'); if (cs.length === 1) r.pag = cs[0].id; }
+  const pagWords = new Set(pagAlias.split(' ').filter(Boolean));
+
+  // tipo
+  if (/\s(salario)\s/.test(t) && !/\sextra\s/.test(t)) r.acao = 'salario';
+  else if (/\s(invest\w*|apliquei|aplicacao|guardei|guardar|poupanca|reserva)\s/.test(t)) r.tipo = 'invest';
+  else if (/\s(recebi|ganhei|renda|entrou|freela|bonus|recebido)\s/.test(t)) r.tipo = 'renda';
+  else if (/\s(fixo|fixa|todo mes|toda mes|mensal|mensalmente)\s/.test(t)) r.tipo = 'fixo';
+
+  // "paguei o aluguel" -> marca a fixa como paga
+  if (r.acao === 'lancar' && r.tipo === 'gasto' && /\s(paguei|pago|quitei)\s/.test(t) && r.parcelas === 1) {
+    let achou = null;
+    m.fixas.forEach(f => { const n = norm(f.nome).trim(); if (n && new RegExp(`\\s${escRe(n)}\\s`).test(t) && (!achou || n.length > norm(achou.nome).length)) achou = f; });
+    if (achou) { r.acao = 'pagar-fixa'; r.fixa = achou; }
+  }
+
+  // descrição: o que sobrar da frase original, mantendo acentos
+  const tk = String(txt).split(/\s+/).map(w => {
+    const n = norm(w).replace(/[^a-z0-9$]/g, '');
+    let cls = 'K';
+    if (!n || /\d/.test(n) || STRONG.has(n) || n === 'mil' || (n in NUMW && n !== 'um' && n !== 'uma') || pagWords.has(n) || n === 'nubank') cls = 'S';
+    else if (WEAK.has(n)) cls = 'W';
+    return { w: w.replace(/^[.,!?;:"]+|[.,!?;:"]+$/g, ''), cls };
   });
+  const out = [];
+  tk.forEach((x, i) => {
+    if (x.cls === 'K') { out.push(x.w); return; }
+    if (x.cls !== 'W' || !out.length) return;
+    let j = i + 1; while (j < tk.length && tk[j].cls === 'W') j++;
+    if (j < tk.length && tk[j].cls === 'K' && tk.slice(i, j).every(y => y.cls === 'W')) {
+      // só mantém conectores entre palavras que ficam ("reserva de emergência")
+      if (tk[i - 1] && (tk[i - 1].cls === 'K' || (tk[i - 1].cls === 'W' && out.length))) out.push(x.w);
+    }
+  });
+  let d = out.join(' ').trim();
+  d = d ? d.charAt(0).toUpperCase() + d.slice(1) : ({ gasto: 'Gasto', fixo: 'Gasto fixo', invest: 'Investimento', renda: 'Renda extra' }[r.tipo]);
+  r.desc = d;
+  return r;
+}
+
+function abrirVoz() {
+  const m = S.meses[ui.mes]; if (!m) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.innerHTML = `<div class="sheet"><div class="grab"></div><h3>Lançar por voz</h3>
+    <button class="mic-big" type="button" aria-label="Falar">${ICON.mic}</button>
+    <div class="voz-status"></div>
+    <div class="f"><textarea rows="2" placeholder="Ex.: gastei 45 reais no mercado no cartão NU"></textarea></div>
+    <div class="voz-prev"></div>
+    <div class="sheet-actions">
+      <button class="btn" type="button" data-ok>Lançar</button>
+      <button class="btn ghost" type="button" data-edit>Revisar antes</button>
+      <button class="btn ghost" type="button" data-close>Cancelar</button>
+    </div>
+    <div class="voz-ex"><div>Exemplos (toque para testar):</div>
+      ${['gastei 32,90 na farmácia no pix', 'celular 1.200 reais em 10 vezes no cartão NU', 'investi 500 reais na reserva de emergência', 'recebi 300 de freela', 'paguei o aluguel']
+        .map(e => `<button type="button" class="chip" data-ex="${esc(e)}">${esc(e)}</button>`).join('')}
+    </div></div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => ov.classList.add('show'));
+  const $$ = s => ov.querySelector(s);
+  const ta = $$('textarea'), mic = $$('.mic-big'), st = $$('.voz-status'), prev = $$('.voz-prev'), ok = $$('[data-ok]'), edit = $$('[data-edit]');
+  let rec = null, ouvindo = false, r = null;
+
+  const linha = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+  function atualizar() {
+    const txt = ta.value.trim();
+    if (!txt) { prev.innerHTML = ''; ok.disabled = true; ok.style.opacity = .5; edit.style.display = 'none'; return; }
+    r = interpretar(txt);
+    edit.style.display = '';
+    let html = '', pode = true;
+    if (r.acao === 'pagar-fixa') {
+      const v = r.valor || r.fixa.valor;
+      html = linha('Ação', 'Marcar como paga') + linha('Conta fixa', esc(r.fixa.nome)) + linha('Valor', fmt(v));
+      ok.textContent = r.fixa.pago ? 'Já está paga' : 'Marcar como paga'; pode = !r.fixa.pago;
+    } else if (r.acao === 'salario') {
+      html = linha('Ação', 'Atualizar salário') + linha('Mês', label(ui.mes)) + linha('Valor', r.valor ? fmt(r.valor) : '<i style="color:var(--red)">não entendi</i>');
+      ok.textContent = 'Atualizar salário'; pode = r.valor > 0;
+    } else {
+      const tipos = { gasto: 'Gasto variável', fixo: 'Gasto fixo (todo mês)', invest: 'Investimento', renda: 'Renda extra' };
+      html = linha('Tipo', tipos[r.tipo]) + linha('Descrição', esc(r.desc)) +
+        linha('Valor', r.valor ? (r.parcelas > 1 ? `${r.parcelas}x de ${fmt(r.valor)}` : fmt(r.valor)) : '<i style="color:var(--red)">não entendi</i>') +
+        (r.parcelas > 1 ? linha('Total', fmt(r.total || r.valor * r.parcelas)) : '') +
+        (r.tipo === 'gasto' || r.tipo === 'fixo' ? linha('Pagamento', esc(r.pag ? pagNome(r.pag) : 'Não informado')) : '');
+      ok.textContent = 'Lançar'; pode = r.valor > 0;
+    }
+    prev.innerHTML = `<div class="prev">${html}</div>`;
+    ok.disabled = !pode; ok.style.opacity = pode ? 1 : .5;
+  }
+  function parar() { try { rec && rec.abort(); } catch (e) {} ouvindo = false; mic.classList.remove('on'); }
+  function ouvir() {
+    if (!SR) { st.textContent = 'Toque no campo abaixo e use o microfone do teclado para ditar.'; ta.focus(); return; }
+    if (ouvindo) { try { rec.stop(); } catch (e) {} return; }
+    rec = new SR(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onstart = () => { ouvindo = true; mic.classList.add('on'); st.textContent = 'Ouvindo… fale o lançamento'; };
+    rec.onresult = e => { let s = ''; for (const res of e.results) s += res[0].transcript; ta.value = s; atualizar(); };
+    rec.onerror = e => {
+      st.textContent = (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+        ? 'O microfone não está liberado aqui. Toque no campo abaixo e use o microfone do teclado.'
+        : e.error === 'no-speech' ? 'Não ouvi nada. Toque no microfone para tentar de novo.' : 'Não consegui ouvir. Toque no microfone para tentar de novo.';
+    };
+    rec.onend = () => { ouvindo = false; mic.classList.remove('on'); if (/Ouvindo/.test(st.textContent)) st.textContent = ta.value ? 'Confira abaixo e toque em Lançar.' : 'Toque no microfone para falar.'; };
+    try { rec.start(); } catch (e) { st.textContent = 'Toque no campo abaixo e use o microfone do teclado.'; }
+  }
+  const fechar = () => { parar(); ov.classList.remove('show'); document.body.style.overflow = ''; setTimeout(() => ov.remove(), 200); };
+
+  mic.addEventListener('click', ouvir);
+  ta.addEventListener('input', atualizar);
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-close]')) return fechar();
+    const ex = e.target.closest('[data-ex]'); if (ex) { parar(); ta.value = ex.dataset.ex; atualizar(); }
+  });
+  ok.addEventListener('click', () => {
+    if (!r || ok.disabled) return;
+    if (r.acao === 'pagar-fixa') { r.fixa.pago = true; if (r.valor) r.fixa.valor = r.valor; toast(r.fixa.nome + ' marcada como paga'); }
+    else if (r.acao === 'salario') { m.salario = r.valor; toast('Salário atualizado'); }
+    else lancar(r);
+    save(); fechar(); render();
+  });
+  edit.addEventListener('click', () => {
+    if (!r) return; fechar();
+    setTimeout(() => {
+      if (r.acao === 'pagar-fixa') editFixaMes(r.fixa.id);
+      else if (r.acao === 'salario') editSalario(r.valor);
+      else addLancamento(r.tipo, r);
+    }, 220);
+  });
+  atualizar();
+  ouvir();
+}
+
+function editSalario(valor) {
+  const m = S.meses[ui.mes];
+  openSheet({ title: 'Salário de ' + label(ui.mes), fields: [{ type: 'money', name: 'salario', label: 'Valor', value: valor || m.salario, hint: 'Para mudar o padrão dos próximos meses, use Ajustes.' }], onSave: v => { m.salario = v.salario; } });
 }
 
 function editSimple(listName, id, title, withPag) {
@@ -902,7 +1134,8 @@ document.addEventListener('click', e => {
     case 'ed-inv': editSimple('invest', id, 'Investimento', false); break;
     case 'ed-extra': editSimple('extras', id, 'Renda extra', false); break;
     case 'ed-parc': editParcelado(id); break;
-    case 'ed-sal': openSheet({ title: 'Salário de ' + label(ui.mes), fields: [{ type: 'money', name: 'salario', label: 'Valor', value: m.salario, hint: 'Para mudar o padrão dos próximos meses, use Ajustes.' }], onSave: v => { m.salario = v.salario; } }); break;
+    case 'ed-sal': editSalario(); break;
+    case 'voz': if (m) abrirVoz(); break;
     case 'ed-salpadrao': openSheet({ title: 'Salário fixo padrão', fields: [{ type: 'money', name: 'salario', label: 'Valor', value: S.salarioPadrao }, { type: 'check', name: 'aplicar', label: 'Aplicar também aos meses já criados a partir de hoje', value: false }], onSave: v => { S.salarioPadrao = v.salario; if (v.aplicar) mesesFuturos().forEach(k => S.meses[k].salario = v.salario); toast('Salário atualizado'); } }); break;
     case 'ed-fixo': editFixo(id); break;
     case 'add-fixo': editFixo(null); break;
