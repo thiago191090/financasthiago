@@ -73,7 +73,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .grp .progress{margin-top:-4px;margin-bottom:12px}
 .grp .tot{display:flex;align-items:center;gap:6px}
 .chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
-.grp.open .chev{transform:rotate(180deg)}
+.grp.open > .grp-h .chev{transform:rotate(180deg)}
+.item.sub{padding-left:28px;background:var(--card2)}
+.item.sub .t{font-weight:500;font-size:14px}
+.item.sub .check{width:22px;height:22px}
+.item.fat .val{display:flex;align-items:center;gap:4px}
+.chev.up{transform:rotate(180deg)}
 .grp-body{display:none}
 .grp.open .grp-body{display:block}
 .dot{width:9px;height:9px;border-radius:3px;background:var(--c)}
@@ -518,7 +523,23 @@ function porPagamento(m) {
   m.variaveis.forEach(v => add(v.pag, v.valor));
   return Object.entries(map).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
 }
-const parcChip = it => it.parc ? `<span class="chip parc">Parcela ${it.parc.i}/${it.parc.n}</span>` : '';
+/* agrupa as compras à vista no cartão (não parceladas) numa fatura por cartão */
+const vaiNaFatura = it => !it.parc && isCard(it.pag);
+function gruposVariaveis(m) {
+  const fat = {}, linhas = [];
+  m.variaveis.forEach(it => {
+    if (vaiNaFatura(it)) {
+      if (!fat[it.pag]) { fat[it.pag] = { tipo: 'fatura', pag: it.pag, itens: [], total: 0 }; linhas.push(fat[it.pag]); }
+      const f = fat[it.pag]; f.itens.push(it); f.total = round(f.total + it.valor);
+    } else linhas.push({ tipo: 'item', it });
+  });
+  linhas.forEach(x => { if (x.tipo === 'fatura') x.pago = x.itens.every(i => i.pago); });
+  const pagas = linhas.filter(x => x.tipo === 'fatura' ? x.pago : x.it.pago).length;
+  // faturas primeiro, depois o resto na ordem em que foi lançado
+  linhas.sort((a, b) => (a.tipo === 'fatura' ? 0 : 1) - (b.tipo === 'fatura' ? 0 : 1));
+  return { linhas, pagas };
+}
+const parcChip = it =>it.parc ? `<span class="chip parc">Parcela ${it.parc.i}/${it.parc.n}</span>` : '';
 /* todas as parcelas de um mesmo lançamento, em todos os meses */
 function parcelasDoGrupo(g) {
   const out = [];
@@ -596,9 +617,24 @@ function viewMes() {
       <button class="val num" data-a="ed-fixa" data-id="${f.id}">${fmt(f.valor)}</button>
     </div>`).join('');
 
-  const varHtml = m.variaveis.map(v => `<button class="item" data-a="ed-var" data-id="${v.id}">
-      <div class="main"><div class="t">${esc(v.desc)}</div><div class="s">${parcChip(v)}${pagChip(v.pag)}</div></div>
-      <div class="val num">${fmt(v.valor)}</div></button>`).join('');
+  /* despesas variáveis: compras à vista no cartão somam numa linha de fatura por cartão */
+  const chk = (on, a, attr) => `<button class="check ${on ? 'on' : ''}" data-a="${a}" ${attr} aria-label="Marcar como paga">${on ? ICON.check : ''}</button>`;
+  const linhaVar = (v, sub = false) => `<div class="item ${v.pago ? 'done' : ''} ${sub ? 'sub' : ''}">
+      ${chk(v.pago, 'pago-var', `data-id="${v.id}"`)}
+      <button class="main" style="text-align:left" data-a="ed-var" data-id="${v.id}"><div class="t">${esc(v.desc)}</div><div class="s">${parcChip(v)}${sub ? '' : pagChip(v.pag)}</div></button>
+      <button class="val num" data-a="ed-var" data-id="${v.id}">${fmt(v.valor)}</button></div>`;
+  const vg = gruposVariaveis(m);
+  const varHtml = vg.linhas.map(x => {
+    if (x.tipo === 'item') return linhaVar(x.it);
+    const f = x, aberto = ui.abertos.has('fat-' + f.pag);
+    return `<div class="item fat ${f.pago ? 'done' : ''}">
+      ${chk(f.pago, 'pago-fat', `data-pag="${f.pag}"`)}
+      <button class="main" style="text-align:left" data-a="fat" data-pag="${f.pag}">
+        <div class="t">Fatura ${esc(pagNome(f.pag))}</div>
+        <div class="s"><span class="chip card">${f.itens.length === 1 ? '1 compra' : f.itens.length + ' compras'}</span><span>${aberto ? 'toque para fechar' : 'toque para ver'}</span></div></button>
+      <button class="val num" data-a="fat" data-pag="${f.pag}">${fmt(f.total)}<svg class="chev ${aberto ? 'up' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>${aberto ? f.itens.map(it => linhaVar(it, true)).join('') : ''}`;
+  }).join('');
 
   const retMes = m.retiradas || [];
   const invHtml = m.invest.map(v => `<button class="item" data-a="ed-inv" data-id="${v.id}">
@@ -654,7 +690,8 @@ function viewMes() {
     corpo: fixasHtml + `<button class="add-row" data-a="add" data-tipo="fixo">${ICON.plus}Adicionar fixa</button>` })}
 
   ${grupo({ id: 'var', titulo: 'Despesas variáveis', cor: '#fbbf24', total: t.variaveis,
-    resumo: itens(m.variaveis.length),
+    resumo: vg.linhas.length ? `${vg.pagas} de ${vg.linhas.length} pagas` : 'Nenhum item',
+    extra: vg.linhas.length ? `<div class="progress"><i style="width:${vg.pagas / vg.linhas.length * 100}%"></i></div>` : '',
     corpo: (varHtml || '<div class="empty">Nenhum gasto variável neste mês.</div>') + `<button class="add-row" data-a="add" data-tipo="gasto">${ICON.plus}Adicionar gasto</button>` })}
 
   ${grupo({ id: 'inv', titulo: 'Poupança e investimentos', cor: '#60a5fa', total: t.invest,
@@ -961,7 +998,8 @@ function lancar(v, k = ui.mes) {
     if (g) it.parc = { g, i: i + 1, n };
     garantirMes(mk)[lista].push(it);
   }
-  toast(n > 1 ? `${n} parcelas lançadas: ${shortLabel(k)} a ${shortLabel(addMonth(k, n - 1))}${criados.length ? ` (${criados.length} ${criados.length === 1 ? 'mês criado' : 'meses criados'})` : ''}` : 'Lançado em ' + label(k));
+  toast(n > 1 ? `${n} parcelas lançadas: ${shortLabel(k)} a ${shortLabel(addMonth(k, n - 1))}${criados.length ? ` (${criados.length} ${criados.length === 1 ? 'mês criado' : 'meses criados'})` : ''}`
+    : (lista === 'variaveis' && isCard(v.pag)) ? `Somado à fatura ${pagNome(v.pag)} de ${shortLabel(k)}` : 'Lançado em ' + label(k));
 }
 
 /* ---- parcelas: editar uma ou todas ---- */
@@ -976,12 +1014,14 @@ function editarItem(lista, id, titulo, comPag) {
       { type: 'text', name: 'desc', label: 'Descrição', value: it.desc },
       { type: 'money', name: 'valor', label: 'Valor da parcela', value: it.valor },
       ...(comPag ? [{ type: 'pag', name: 'pag', value: it.pag }] : []),
+      ...(lista === 'variaveis' ? [{ type: 'check', name: 'pago', label: 'Já paguei esta parcela', value: !!it.pago }] : []),
       { type: 'check', name: 'todas', label: i < n ? (i + 1 === n ? `Aplicar também à parcela ${n}` : `Aplicar também às parcelas seguintes (${i + 1} a ${n})`) : 'Aplicar às outras parcelas', value: i < n },
     ],
     onSave: v => {
       if (!need(v.desc, 'Informe a descrição')) return false;
       const alvo = v.todas ? (i < n ? seguintes() : parcelasDoGrupo(g)) : [{ it }];
       alvo.forEach(p => { p.it.desc = v.desc; p.it.valor = v.valor; if (comPag) p.it.pag = v.pag; });
+      if ('pago' in v) it.pago = v.pago;   // "pago" vale só para esta parcela
     },
     onDelete: () => { if (!confirm(`Excluir só a parcela ${i}/${n}?`)) return false; m[lista] = m[lista].filter(x => x.id !== id); },
     deleteLabel: 'Excluir só esta parcela',
@@ -1143,6 +1183,14 @@ function interpretar(txt) {
     let achou = null;
     m.fixas.forEach(f => { const n = norm(f.nome).trim(); if (n && new RegExp(`\\s${escRe(n)}\\s`).test(t) && (!achou || n.length > norm(achou.nome).length)) achou = f; });
     if (achou) { r.acao = 'pagar-fixa'; r.fixa = achou; }
+    // "paguei a fatura do NU" -> marca a fatura do cartão como paga
+    else if (/\sfatura\s/.test(t) && isCard(r.pag)) r.acao = 'pagar-fatura';
+    // "paguei a academia" -> marca a despesa variável como paga
+    else if (!r.valor) {
+      let v = null;
+      m.variaveis.forEach(x => { const n = norm(x.desc).trim(); if (n && new RegExp(`\\s${escRe(n)}\\s`).test(t) && (!v || n.length > norm(v.desc).length)) v = x; });
+      if (v) { r.acao = 'pagar-var'; r.var = v; }
+    }
   }
 
   // descrição: o que sobrar da frase original, mantendo acentos
@@ -1185,7 +1233,7 @@ function abrirVoz() {
       <button class="btn ghost" type="button" data-close>Cancelar</button>
     </div>
     <div class="voz-ex"><div>Exemplos (toque para testar):</div>
-      ${['gastei 32,90 na farmácia no pix', 'celular 1.200 reais em 10 vezes no cartão NU', 'investi 500 reais na reserva de emergência', 'recebi 300 de freela', 'paguei o aluguel', 'retirei 1000 do Guardar']
+      ${['gastei 32,90 na farmácia no pix', 'celular 1.200 reais em 10 vezes no cartão NU', 'investi 500 reais na reserva de emergência', 'recebi 300 de freela', 'paguei o aluguel', 'paguei a fatura do NU', 'retirei 1000 do Guardar']
         .map(e => `<button type="button" class="chip" data-ex="${esc(e)}">${esc(e)}</button>`).join('')}
     </div></div>`;
   document.body.appendChild(ov);
@@ -1206,6 +1254,14 @@ function abrirVoz() {
       const v = r.valor || r.fixa.valor;
       html = linha('Ação', 'Marcar como paga') + linha('Conta fixa', esc(r.fixa.nome)) + linha('Valor', fmt(v));
       ok.textContent = r.fixa.pago ? 'Já está paga' : 'Marcar como paga'; pode = !r.fixa.pago;
+    } else if (r.acao === 'pagar-fatura') {
+      const its = m.variaveis.filter(x => vaiNaFatura(x) && x.pag === r.pag);
+      html = linha('Ação', 'Marcar fatura como paga') + linha('Cartão', esc(pagNome(r.pag))) + linha('Total da fatura', fmt(sum(its))) + linha('Mês', label(ui.mes));
+      const jaPaga = its.length && its.every(x => x.pago);
+      ok.textContent = !its.length ? 'Fatura vazia' : jaPaga ? 'Já está paga' : 'Marcar como paga'; pode = its.length > 0 && !jaPaga;
+    } else if (r.acao === 'pagar-var') {
+      html = linha('Ação', 'Marcar como paga') + linha('Despesa', esc(r.var.desc)) + linha('Valor', fmt(r.var.valor));
+      ok.textContent = r.var.pago ? 'Já está paga' : 'Marcar como paga'; pode = !r.var.pago;
     } else if (r.acao === 'retirada') {
       html = linha('Ação', 'Retirar investimento') + linha('De onde', esc(r.destino || 'nenhum investimento')) +
         linha('Valor', r.valor ? fmt(r.valor) : '<i style="color:var(--red)">não entendi</i>') + linha('Mês', label(ui.mes)) + linha('Entra no caixa do mês', 'Sim');
@@ -1274,6 +1330,8 @@ function abrirVoz() {
   ok.addEventListener('click', () => {
     if (!r || ok.disabled) return;
     if (r.acao === 'pagar-fixa') { r.fixa.pago = true; if (r.valor) r.fixa.valor = r.valor; toast(r.fixa.nome + ' marcada como paga'); }
+    else if (r.acao === 'pagar-fatura') { m.variaveis.filter(x => vaiNaFatura(x) && x.pag === r.pag).forEach(x => x.pago = true); toast(`Fatura ${pagNome(r.pag)} marcada como paga`); }
+    else if (r.acao === 'pagar-var') { r.var.pago = true; toast(r.var.desc + ' marcada como paga'); }
     else if (r.acao === 'salario') { m.salario = r.valor; toast('Salário atualizado'); }
     else if (r.acao === 'retirada') {
       const desc = r.desc && !/^(Gasto|Investimento|Renda extra)$/.test(r.desc) ? r.desc : '';
@@ -1287,6 +1345,8 @@ function abrirVoz() {
     if (!r) return; fechar();
     setTimeout(() => {
       if (r.acao === 'pagar-fixa') editFixaMes(r.fixa.id);
+      else if (r.acao === 'pagar-var') editarItem('variaveis', r.var.id, 'Gasto variável', true);
+      else if (r.acao === 'pagar-fatura') { ui.abertos.add('var'); ui.abertos.add('fat-' + r.pag); render(); }
       else if (r.acao === 'salario') editSalario(r.valor);
       else if (r.acao === 'retirada') retirada(r.destino, null, { valor: r.valor });
       else addLancamento(r.tipo, r);
@@ -1310,7 +1370,8 @@ function editSimple(listName, id, title, withPag) {
   openSheet({
     title,
     fields: [{ type: 'text', name: 'desc', label: 'Descrição', value: it.desc }, { type: 'money', name: 'valor', label: 'Valor', value: it.valor },
-      ...(withPag ? [{ type: 'pag', name: 'pag', value: it.pag }] : [])],
+      ...(withPag ? [{ type: 'pag', name: 'pag', value: it.pag, hint: 'Compras à vista no cartão entram na fatura do cartão.' }] : []),
+      ...(listName === 'variaveis' ? [{ type: 'check', name: 'pago', label: 'Já paguei', value: !!it.pago }] : [])],
     onSave: v => { if (!need(v.desc, 'Informe a descrição')) return false; Object.assign(it, v); },
     onDelete: () => { if (!confirm('Excluir "' + it.desc + '"?')) return false; m[listName] = m[listName].filter(x => x.id !== id); },
   });
@@ -1406,6 +1467,15 @@ document.addEventListener('click', e => {
     case 'goto': ui.mes = b.dataset.k; ui.tab = 'mes'; render(); window.scrollTo(0, 0); break;
     case 'add': if (m) addLancamento(b.dataset.tipo); break;
     case 'pago': { const f = m.fixas.find(x => x.id === id); if (f) { f.pago = !f.pago; save(); render(); } break; }
+    case 'pago-var': { const v = m.variaveis.find(x => x.id === id); if (v) { v.pago = !v.pago; save(); render(); } break; }
+    case 'pago-fat': {
+      const its = m.variaveis.filter(x => vaiNaFatura(x) && x.pag === b.dataset.pag);
+      const marcar = !its.every(x => x.pago);
+      its.forEach(x => x.pago = marcar); save(); render();
+      toast(`Fatura ${pagNome(b.dataset.pag)} ${marcar ? 'marcada como paga' : 'desmarcada'}`);
+      break;
+    }
+    case 'fat': { const g = 'fat-' + b.dataset.pag; ui.abertos.has(g) ? ui.abertos.delete(g) : ui.abertos.add(g); render(); break; }
     case 'ed-fixa': editFixaMes(id); break;
     case 'ed-var': editarItem('variaveis', id, 'Gasto variável', true); break;
     case 'ed-inv': editarItem('invest', id, 'Investimento', false); break;
