@@ -572,10 +572,9 @@ function mesesFuturos() { const t = todayKey(); return Object.keys(S.meses).filt
 
 /* ============ estado de tela ============ */
 const ui = { tab: 'mes', mes: null, abertos: new Set() };
+/* abre sempre no mês seguinte ao atual (as despesas são lançadas com um mês de antecedência) */
 function mesInicial() {
-  const t = todayKey(), ks = Object.keys(S.meses).sort();
-  if (S.meses[t] || !ks.length) return t;
-  return ks.find(k => k >= t) || ks[ks.length - 1];
+  return addMonth(todayKey(), 1);
 }
 
 /* ============ telas ============ */
