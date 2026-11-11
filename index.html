@@ -16,14 +16,14 @@
 :root{
   --bg:#f3f5f2; --card:#ffffff; --card2:#f7f9f6; --text:#14201a; --muted:#66756c; --line:#e3e8e3;
   --accent:#16a34a; --accent-soft:#dcfce7; --red:#dc2626; --red-soft:#fee2e2; --blue:#2563eb; --blue-soft:#dbeafe;
-  --amber:#b45309; --amber-soft:#fef3c7; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
+  --amber:#b45309; --amber-soft:#fef3c7; --purple:#7c3aed; --purple-soft:#ede9fe; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
   --hero:#0f2a1c; --hero-text:#eafff1;
 }
 @media (prefers-color-scheme:dark){
   :root{
     --bg:#0b100d; --card:#141b17; --card2:#18211c; --text:#e8efe9; --muted:#8fa096; --line:#24302a;
     --accent:#22c55e; --accent-soft:#12301f; --red:#f87171; --red-soft:#3a1717; --blue:#60a5fa; --blue-soft:#14233d;
-    --amber:#fbbf24; --amber-soft:#3a2c0b; --shadow:none; --hero:#123322; --hero-text:#eafff1;
+    --amber:#fbbf24; --amber-soft:#3a2c0b; --purple:#c4b5fd; --purple-soft:#2a1f47; --shadow:none; --hero:#123322; --hero-text:#eafff1;
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -75,6 +75,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
 .grp.open > .grp-h .chev{transform:rotate(180deg)}
 .item.sub{padding-left:28px;background:var(--card2)}
+.item.terc{box-shadow:inset 3px 0 0 var(--purple);background:var(--purple-soft)}
+.item.terc .val{color:var(--purple)}
+.chip.terc{background:var(--purple);color:#fff;border-color:transparent}
+.terc-box{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--purple-soft);color:var(--purple);border-radius:14px;padding:10px 14px;margin:-4px 0 14px;font-size:13px;font-weight:600}
+.terc-box b{font-size:15px}
 .item.nota{font-size:12.5px;color:var(--muted);justify-content:space-between;padding:9px 14px}
 .item.nota .link{color:var(--blue);font-weight:600;font-size:12.5px}
 .item.sub .t{font-weight:500;font-size:14px}
@@ -511,12 +516,13 @@ function totais(m) {
   const extra = sum(m.extras);
   const resgate = sum((m.retiradas || []).filter(r => r.entra));   // retirada que volta para o caixa do mês
   const fixas = sum(m.fixas);
-  const variaveis = sum(m.variaveis);
+  const terceiros = sum(m.variaveis.filter(v => v.terceiro));   // emprestei o cartão: entra na fatura, não é gasto meu
+  const variaveis = round(sum(m.variaveis) - terceiros);
   const invest = sum(m.invest);
   const entradas = round(salario + extra + resgate);
   const gastos = round(fixas + variaveis);
   const saidas = round(gastos + invest);
-  return { salario, extra, resgate, fixas, variaveis, invest, entradas, gastos, saidas, sobra: round(entradas - saidas) };
+  return { salario, extra, resgate, fixas, variaveis, terceiros, invest, entradas, gastos, saidas, sobra: round(entradas - saidas) };
 }
 function porPagamento(m) {
   const map = {};
@@ -536,6 +542,7 @@ function faturasDoMes(m) {
     return { pag: p.id, itens, total: round(itens.reduce((a, x) => a + (Number(x.it.valor) || 0), 0)), pago: itens.length > 0 && itens.every(x => x.it.pago) };
   }).filter(f => f.itens.length);
 }
+function setTerc(it, v) { if (v.terceiro) { it.terceiro = true; if (v.quem) it.quem = v.quem; else delete it.quem; } else { delete it.terceiro; delete it.quem; } }
 const parcChip = it =>it.parc ? `<span class="chip parc">Parcela ${it.parc.i}/${it.parc.n}</span>` : '';
 /* todas as parcelas de um mesmo lançamento, em todos os meses */
 function parcelasDoGrupo(g) {
@@ -608,9 +615,10 @@ function viewMes() {
       <button class="main" style="text-align:left" data-a="ed-fixa" data-id="${f.id}">
         <div class="t">${esc(f.nome)}</div><div class="s">${sub ? '<span class="chip">Fixa</span>' : (pagChip(f.pag) || '<span>Sem forma de pagamento</span>')}</div></button>
       <button class="val num" data-a="ed-fixa" data-id="${f.id}">${fmt(f.valor)}</button></div>`;
-  const linhaVar = (v, sub = false) => `<div class="item ${v.pago ? 'done' : ''} ${sub ? 'sub' : ''}">
+  const tercChip = v => v.terceiro ? `<span class="chip terc">${v.quem ? 'De ' + esc(v.quem) : 'De terceiro'}</span>` : '';
+  const linhaVar = (v, sub = false) => `<div class="item ${v.pago ? 'done' : ''} ${sub ? 'sub' : ''} ${v.terceiro ? 'terc' : ''}">
       ${chk(v.pago, 'pago-var', `data-id="${v.id}"`)}
-      <button class="main" style="text-align:left" data-a="ed-var" data-id="${v.id}"><div class="t">${esc(v.desc)}</div><div class="s">${parcChip(v)}${sub ? '' : pagChip(v.pag)}</div></button>
+      <button class="main" style="text-align:left" data-a="ed-var" data-id="${v.id}"><div class="t">${esc(v.desc)}</div><div class="s">${tercChip(v)}${parcChip(v)}${sub ? '' : pagChip(v.pag)}</div></button>
       <button class="val num" data-a="ed-var" data-id="${v.id}">${fmt(v.valor)}</button></div>`;
   const resumoPagas = (pg, n, extraTxt = '') => (n ? `${pg} de ${n} pagas` : 'Nenhum item') + extraTxt;
   const barra = (pg, n) => n ? `<div class="progress"><i style="width:${pg / n * 100}%"></i></div>` : '';
@@ -623,18 +631,19 @@ function viewMes() {
     const vis = f.itens.filter(x => x.it.valor);   // itens zerados (ex.: LBV R$ 0) não poluem a lista
     const nFix = vis.filter(x => x.l === 'fixa').length, nVar = vis.length - nFix;
     const desc = [nFix ? `${nFix} fixa${nFix > 1 ? 's' : ''}` : '', nVar ? `${nVar} compra${nVar > 1 ? 's' : ''}` : ''].filter(Boolean).join(' + ') || 'sem valores';
+    const terc = round(f.itens.filter(x => x.it.terceiro).reduce((a, x) => a + x.it.valor, 0));
     return `<div class="item fat ${f.pago ? 'done' : ''}">
       ${chk(f.pago, 'pago-fat', `data-pag="${f.pag}"`)}
       <button class="main" style="text-align:left" data-a="fat" data-pag="${f.pag}">
         <div class="t">Fatura ${esc(pagNome(f.pag))}</div>
-        <div class="s"><span class="chip card">${desc}</span><span>${aberto ? 'toque para fechar' : 'toque para ver'}</span></div></button>
+        <div class="s"><span class="chip card">${desc}</span>${terc ? `<span class="chip terc">${fmt(terc)} de terceiros</span>` : ''}<span>${aberto ? 'toque para fechar' : 'toque para ver'}</span></div></button>
       <button class="val num" data-a="fat" data-pag="${f.pag}">${fmt(f.total)}<svg class="chev ${aberto ? 'up' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     </div>${aberto ? vis.map(x => x.l === 'fixa' ? linhaFixa(x.it, true) : linhaVar(x.it, true)).join('') : ''}`;
   }).join('');
 
   /* fixas e variáveis fora do cartão */
   const fixFora = m.fixas.filter(f => !isCard(f.pag)), varFora = m.variaveis.filter(v => !isCard(v.pag));
-  const fixNoCartao = round(t.fixas - sum(fixFora)), varNoCartao = round(t.variaveis - sum(varFora));
+  const fixNoCartao = round(t.fixas - sum(fixFora)), varNoCartao = round(sum(m.variaveis) - sum(varFora));
   const pagas = fixFora.filter(f => f.pago).length, varPagas = varFora.filter(v => v.pago).length;
   const fixasHtml = fixFora.map(f => linhaFixa(f)).join('');
   const varHtml = varFora.map(v => linhaVar(v)).join('');
@@ -679,6 +688,7 @@ function viewMes() {
     <div class="legend"><span style="--c:#f87171">Fixas</span><span style="--c:#fbbf24">Variáveis</span><span style="--c:#60a5fa">Investido</span><span style="--c:#4ade80">Sobra</span></div>
   </div>
 
+  ${t.terceiros ? `<div class="terc-box"><span>De terceiros (não sai do seu bolso)</span><b class="num">${fmt(t.terceiros)}</b></div>` : ''}
   <div class="grid">
     <div class="stat"><div class="k">Salário</div><div class="v num">${fmt(t.salario)}</div></div>
     <div class="stat"><div class="k">Renda extra</div><div class="v num">${fmt(t.extra)}</div></div>
@@ -713,7 +723,7 @@ function viewMes() {
     resumo: ['Salário', m.extras.length ? itens(m.extras.length).replace('itens', 'extras').replace('item', 'extra') : '', t.resgate ? 'resgate' : ''].filter(Boolean).join(' + '),
     corpo: rendaHtml + `<button class="add-row" data-a="add" data-tipo="renda">${ICON.plus}Adicionar renda extra</button>` })}
 
-  ${grupo({ id: 'pag', titulo: 'Por forma de pagamento', total: t.gastos,
+  ${grupo({ id: 'pag', titulo: 'Por forma de pagamento', total: round(pp.reduce((a, x) => a + x[1], 0)),
     resumo: 'Quanto vai para cada cartão (fatura) e forma de pagamento',
     corpo: payHtml || '<div class="empty">Sem gastos lançados.</div>' })}`;
 }
@@ -968,6 +978,8 @@ function addLancamento(tipo = 'gasto', pre = {}) {
       { type: 'text', name: 'desc', label: 'Descrição', value: pre.desc || '', ph: 'Ex.: Mercado, Academia, Freela…' },
       { type: 'money', name: 'valor', label: 'Valor', value: pre.valor || '', hint: '' },
       { type: 'pag', name: 'pag', value: pre.pag || '', show: 'tipo=gasto,fixo' },
+      { type: 'check', name: 'terceiro', label: 'Não é meu (emprestei o cartão / outra pessoa paga)', value: !!pre.terceiro, show: 'tipo=gasto', hint: 'Entra no total da fatura, mas não desconta do seu salário.' },
+      { type: 'text', name: 'quem', label: 'De quem? (opcional)', value: pre.quem || '', ph: 'Ex.: João', show: 'tipo=gasto' },
       { type: 'number', name: 'parcelas', label: 'Parcelas', value: pre.parcelas || 1, min: 1, show: 'tipo=gasto,invest,renda', hint: 'Com 2 ou mais, as próximas parcelas são lançadas nos meses seguintes (criando os meses que faltarem).' },
       { type: 'seg', name: 'modo', label: 'O valor informado é', value: 'parcela', show: 'tipo=gasto,invest,renda', options: [{ v: 'parcela', l: 'De cada parcela' }, { v: 'total', l: 'Total' }] },
       { type: 'check', name: 'recorrente', label: 'Repetir todo mês (cadastrar como fixo)', value: true, show: 'tipo=fixo', hint: 'Desmarcado: entra só em ' + label(k) + '.' },
@@ -1003,7 +1015,7 @@ function lancar(v, k = ui.mes) {
     const mk = addMonth(k, i);
     if (!S.meses[mk]) criados.push(mk);
     const it = { id: uid(), desc: v.desc, valor: i === 0 ? primeira : cada };
-    if (lista === 'variaveis') it.pag = v.pag || '';
+    if (lista === 'variaveis') { it.pag = v.pag || ''; if (v.terceiro) { it.terceiro = true; if (v.quem) it.quem = v.quem; } }
     if (g) it.parc = { g, i: i + 1, n };
     garantirMes(mk)[lista].push(it);
   }
@@ -1023,13 +1035,14 @@ function editarItem(lista, id, titulo, comPag) {
       { type: 'text', name: 'desc', label: 'Descrição', value: it.desc },
       { type: 'money', name: 'valor', label: 'Valor da parcela', value: it.valor },
       ...(comPag ? [{ type: 'pag', name: 'pag', value: it.pag }] : []),
+      ...(lista === 'variaveis' ? [{ type: 'check', name: 'terceiro', label: 'Não é meu (de terceiro)', value: !!it.terceiro }, { type: 'text', name: 'quem', label: 'De quem? (opcional)', value: it.quem || '' }] : []),
       ...(lista === 'variaveis' ? [{ type: 'check', name: 'pago', label: 'Já paguei esta parcela', value: !!it.pago }] : []),
       { type: 'check', name: 'todas', label: i < n ? (i + 1 === n ? `Aplicar também à parcela ${n}` : `Aplicar também às parcelas seguintes (${i + 1} a ${n})`) : 'Aplicar às outras parcelas', value: i < n },
     ],
     onSave: v => {
       if (!need(v.desc, 'Informe a descrição')) return false;
       const alvo = v.todas ? (i < n ? seguintes() : parcelasDoGrupo(g)) : [{ it }];
-      alvo.forEach(p => { p.it.desc = v.desc; p.it.valor = v.valor; if (comPag) p.it.pag = v.pag; });
+      alvo.forEach(p => { p.it.desc = v.desc; p.it.valor = v.valor; if (comPag) p.it.pag = v.pag; if ('terceiro' in v) setTerc(p.it, v); });
       if ('pago' in v) it.pago = v.pago;   // "pago" vale só para esta parcela
     },
     onDelete: () => { if (!confirm(`Excluir só a parcela ${i}/${n}?`)) return false; m[lista] = m[lista].filter(x => x.id !== id); },
@@ -1137,8 +1150,8 @@ function aliasesPag(p) {
   ({ pix: ['pix'], boleto: ['boleto'], debito: ['debito', 'debito em conta'], dinheiro: ['dinheiro', 'especie'] }[p.tipo] || []).forEach(x => al.add(x));
   return [...al].filter(Boolean);
 }
-const STRONG = new Set('gastei gasto gastar gasta paguei pago pagar paga pagamento comprei compra comprar compro foi reais real r$ centavos centavo x vezes vez parcelas parcela parcelado parcelada parcelei cartao credito debito investi investir investimento investimentos aplicacao aplicacoes apliquei guardei guardar poupanca recebi ganhei receber recebido renda extra entrou fixo fixa todo toda mes mensal mensalmente hoje ontem coloca coloque colocar lanca lance lancar lancamento adiciona adicione adicionar anota anote anotar conto contos pila pilas valor deu ficou custou que eu ai tipo salario quitei esse essa este esta nesse nessa neste nesta agora retirei resgatei resgate resgatar retirada retirar saquei sacar tirei'.split(' '));
-const WEAK = new Set('de do da dos das no na nos nas com o a os as e em para pra meu minha meus minhas um uma pelo pela por num numa via'.split(' '));
+const STRONG = new Set('gastei gasto gastar gasta paguei pago pagar paga pagamento comprei compra comprar compro foi reais real r$ centavos centavo x vezes vez parcelas parcela parcelado parcelada parcelei cartao credito debito investi investir investimento investimentos aplicacao aplicacoes apliquei guardei guardar poupanca recebi ganhei receber recebido renda extra entrou fixo fixa todo toda mes mensal mensalmente hoje ontem coloca coloque colocar lanca lance lancar lancamento adiciona adicione adicionar anota anote anotar conto contos pila pilas valor deu ficou custou que eu ai tipo salario quitei esse essa este esta nesse nessa neste nesta agora retirei resgatei resgate resgatar retirada retirar saquei sacar tirei emprestei emprestado emprestada emprestimo terceiro terceiros limite'.split(' '));
+const WEAK = new Set('de do da dos das no na nos nas com o a os as e em para pra pro meu minha meus minhas um uma pelo pela por num numa via'.split(' '));
 
 function interpretar(txt) {
   const m = S.meses[ui.mes];
@@ -1223,6 +1236,17 @@ function interpretar(txt) {
   let d = out.join(' ').trim();
   d = d ? d.charAt(0).toUpperCase() + d.slice(1) : ({ gasto: 'Gasto', fixo: 'Gasto fixo', invest: 'Investimento', renda: 'Renda extra' }[r.tipo]);
   r.desc = d;
+  // "emprestei o cartão pro João 300 no NU" -> gasto de terceiro
+  if (r.acao === 'lancar' && /\s(emprestei|emprestado|emprestada|emprestimo|terceiro|terceiros)\s/.test(t)) {
+    r.tipo = 'gasto'; r.terceiro = true;
+    const q = String(txt).match(/\b(?:pra|pro|para|do|da|de)\s+(?:o\s+|a\s+)?([A-ZÀ-Ú][\wÀ-ú]+)/);
+    if (q && !S.pagamentos.some(p => norm(p.nome).includes(norm(q[1])))) {
+      r.quem = q[1];
+      r.desc = r.desc.replace(new RegExp('\\s*\\b' + escRe(q[1]) + '\\b', 'i'), '').trim();
+    }
+    if (!r.desc || r.desc === 'Gasto') r.desc = 'Empréstimo do cartão';
+    r.desc = r.desc.charAt(0).toUpperCase() + r.desc.slice(1);
+  }
   return r;
 }
 
@@ -1280,7 +1304,7 @@ function abrirVoz() {
       ok.textContent = 'Atualizar salário'; pode = r.valor > 0;
     } else {
       const tipos = { gasto: 'Gasto variável', fixo: 'Gasto fixo (todo mês)', invest: 'Investimento', renda: 'Renda extra' };
-      html = linha('Tipo', tipos[r.tipo]) + linha('Descrição', esc(r.desc)) +
+      html = linha('Tipo', tipos[r.tipo] + (r.terceiro ? ' <span class="chip terc">de terceiro</span>' : '')) + (r.quem ? linha('De quem', esc(r.quem)) : '') + linha('Descrição', esc(r.desc)) +
         linha('Valor', r.valor ? (r.parcelas > 1 ? `${r.parcelas}x de ${fmt(r.valor)}` : fmt(r.valor)) : '<i style="color:var(--red)">não entendi</i>') +
         (r.parcelas > 1 ? linha('Total', fmt(r.total || r.valor * r.parcelas)) : '') +
         (r.tipo === 'gasto' || r.tipo === 'fixo' ? linha('Pagamento', esc(r.pag ? pagNome(r.pag) : 'Não informado')) : '');
@@ -1380,8 +1404,9 @@ function editSimple(listName, id, title, withPag) {
     title,
     fields: [{ type: 'text', name: 'desc', label: 'Descrição', value: it.desc }, { type: 'money', name: 'valor', label: 'Valor', value: it.valor },
       ...(withPag ? [{ type: 'pag', name: 'pag', value: it.pag, hint: 'O que é pago no cartão entra na fatura do cartão.' }] : []),
+      ...(listName === 'variaveis' ? [{ type: 'check', name: 'terceiro', label: 'Não é meu (de terceiro)', value: !!it.terceiro, hint: 'Entra no total da fatura, mas não desconta do seu salário.' }, { type: 'text', name: 'quem', label: 'De quem? (opcional)', value: it.quem || '' }] : []),
       ...(listName === 'variaveis' ? [{ type: 'check', name: 'pago', label: 'Já paguei', value: !!it.pago }] : [])],
-    onSave: v => { if (!need(v.desc, 'Informe a descrição')) return false; Object.assign(it, v); },
+    onSave: v => { if (!need(v.desc, 'Informe a descrição')) return false; const { terceiro, quem, ...resto } = v; Object.assign(it, resto); if (listName === 'variaveis') setTerc(it, v); },
     onDelete: () => { if (!confirm('Excluir "' + it.desc + '"?')) return false; m[listName] = m[listName].filter(x => x.id !== id); },
   });
 }
