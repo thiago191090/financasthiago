@@ -183,6 +183,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:.95}
 .note{font-size:12.5px;color:var(--muted);padding:0 4px 12px}
+.ttl{display:flex;align-items:center;gap:8px}
+.vista-btn{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:11px;background:var(--accent-soft);border:1px solid var(--line);color:var(--accent)}
+.vista-btn svg{width:18px;height:18px}
+.top .mnav .lbl{min-width:0;width:118px;font-size:14.5px}
+.top .mnav .icon-btn{width:34px;height:34px}
+.rcard{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px;scroll-margin-top:12px}
+.rcard.atual{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.rmes{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rsobra{font-weight:750;font-size:16px;color:var(--accent)}
+.rsobra.neg{color:var(--red)}
+.rgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.rgrid>div{background:var(--card2);border-radius:10px;padding:7px 10px;min-width:0;display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.rgrid span{font-size:12px;color:var(--muted)}
+.rgrid b{display:block;font-size:14px;font-weight:650;white-space:nowrap}
+.rterc{margin-top:8px;font-size:12px;color:var(--purple);font-weight:600}
 .sync{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);padding:3px 8px;border-radius:999px;background:var(--card);border:1px solid var(--line);margin-left:6px;vertical-align:middle}
 .sync::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,var(--muted))}
 .sync.ok{--c:var(--accent)} .sync.busy{--c:var(--amber)} .sync.err{--c:var(--red);color:var(--red)}
@@ -259,6 +275,8 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 };
 ICON.cartao = ICON.card;
+ICON.vistaLista = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="5" rx="1.5"/><rect x="3" y="10" width="18" height="5" rx="1.5"/><rect x="3" y="17" width="18" height="4" rx="1.5"/></svg>';
+ICON.vistaMes = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
 ICON.keyboard = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 15h6"/></svg>';
 ICON.minus ='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>';
 ICON.mic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -578,7 +596,9 @@ function carteira() {
 function mesesFuturos() { const t = todayKey(); return Object.keys(S.meses).filter(k => k >= t); }
 
 /* ============ estado de tela ============ */
-const ui = { tab: 'mes', mes: null, abertos: new Set() };
+const VISTA_KEY = 'financas_vista';
+const ui = { tab: 'mes', mes: null, abertos: new Set(), vista: (() => { try { return localStorage.getItem(VISTA_KEY) || 'mes'; } catch (e) { return 'mes'; } })() };
+function setVista(v) { ui.vista = v; try { localStorage.setItem(VISTA_KEY, v); } catch (e) {} }
 /* abre sempre no mês seguinte ao atual (as despesas são lançadas com um mês de antecedência) */
 function mesInicial() {
   return addMonth(todayKey(), 1);
@@ -587,15 +607,47 @@ function mesInicial() {
 /* ============ telas ============ */
 function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#fab').style.display = $('#fabMic').style.display = (ui.tab === 'mes' && S.meses[ui.mes]) ? '' : 'none';
+  $('#fab').style.display = $('#fabMic').style.display = (ui.tab === 'mes' && ui.vista === 'mes' && S.meses[ui.mes]) ? '' : 'none';
   const v = { mes: viewMes, fixos: viewFixos, invest: viewInvest, hist: viewHist, config: viewConfig }[ui.tab];
   $('#app').innerHTML = v();
 }
 
+function tituloComVista() {
+  const resumo = ui.vista === 'resumo';
+  return `<div class="ttl"><h1>Finanças</h1>
+    <button class="vista-btn" data-a="vista" aria-label="${resumo ? 'Ver mês completo' : 'Ver todos os meses resumidos'}">
+      ${resumo ? ICON.vistaMes : ICON.vistaLista}</button></div>`;
+}
+
+/* todos os meses em sequência, só com entradas, saídas, investido e sobra */
+function viewResumo() {
+  const ks = Object.keys(S.meses).sort();
+  const ref = mesInicial();
+  const cards = ks.map(k => {
+    const t = totais(S.meses[k]);
+    const neg = t.sobra < 0;
+    return `<button class="rcard ${k === ref ? 'atual' : ''}" data-a="goto" data-k="${k}" id="r-${k}">
+      <div class="rhead"><span class="rmes">${label(k)}${k === ref ? ' <span class="chip">mês de lançamento</span>' : k === todayKey() ? ' <span class="chip">mês atual</span>' : ''}</span>
+        <span class="rsobra num ${neg ? 'neg' : ''}">${neg ? '' : '+'}${fmt(t.sobra)}</span></div>
+      <div class="rgrid">
+        <div><span>Entradas</span><b class="num" style="color:var(--accent)">${fmt(t.entradas)}</b></div>
+        <div><span>Saídas</span><b class="num" style="color:var(--red)">${fmt(t.gastos)}</b></div>
+        <div><span>Investido</span><b class="num" style="color:var(--blue)">${fmt(t.invest)}</b></div>
+        <div><span>Sobra</span><b class="num" style="color:${neg ? 'var(--red)' : 'var(--text)'}">${fmt(t.sobra)}</b></div>
+      </div>
+      ${t.terceiros ? `<div class="rterc">+ ${fmt(t.terceiros)} de terceiros no cartão</div>` : ''}
+    </button>`;
+  }).join('');
+  return `<div class="top">${tituloComVista()}</div>
+    <p class="note">Sobra = entradas − saídas − investido. Toque num mês para ver completo.</p>
+    ${cards || '<div class="sec"><div class="empty" style="padding:16px">Nenhum mês criado.</div></div>'}`;
+}
+
 function viewMes() {
+  if (ui.vista === 'resumo') return viewResumo();
   const k = ui.mes, m = S.meses[k];
   const head = `<div class="top">
-    <h1>Finanças</h1>
+    ${tituloComVista()}
     <div class="mnav">
       <button class="icon-btn" data-a="prev" aria-label="Mês anterior">${ICON.left}</button>
       <div class="lbl">${label(k)}</div>
@@ -1498,7 +1550,13 @@ document.addEventListener('click', e => {
     case 'prev': ui.mes = addMonth(ui.mes, -1); render(); break;
     case 'next': ui.mes = addMonth(ui.mes, 1); render(); break;
     case 'criar': S.meses[ui.mes] = novoMes(ui.mes); save(); render(); toast(label(ui.mes) + ' criado'); break;
-    case 'goto': ui.mes = b.dataset.k; ui.tab = 'mes'; render(); window.scrollTo(0, 0); break;
+    case 'goto': ui.mes = b.dataset.k; ui.tab = 'mes'; setVista('mes'); render(); window.scrollTo(0, 0); break;
+    case 'vista': {
+      setVista(ui.vista === 'resumo' ? 'mes' : 'resumo'); render();
+      if (ui.vista === 'resumo') { const el = document.getElementById('r-' + addMonth(mesInicial(), -1)) || document.getElementById('r-' + mesInicial()); el ? el.scrollIntoView({ block: 'start' }) : window.scrollTo(0, 0); }
+      else window.scrollTo(0, 0);
+      break;
+    }
     case 'add': if (m) addLancamento(b.dataset.tipo); break;
     case 'pago': { const f = m.fixas.find(x => x.id === id); if (f) { f.pago = !f.pago; save(); render(); } break; }
     case 'pago-var': { const v = m.variaveis.find(x => x.id === id); if (v) { v.pago = !v.pago; save(); render(); } break; }
