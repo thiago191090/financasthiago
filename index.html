@@ -183,6 +183,16 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:.95}
 .note{font-size:12.5px;color:var(--muted);padding:0 4px 12px}
+body.locked .nav,body.locked .fab,body.locked .fab-mic{display:none!important}
+.lock{max-width:340px;margin:12vh auto 0;text-align:center;display:flex;flex-direction:column;gap:12px}
+.lock-ic{width:64px;height:64px;border-radius:20px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin:0 auto}
+.lock-ic svg{width:30px;height:30px}
+.lock h1{margin:4px 0 0;font-size:24px}
+.lock p{margin:0;color:var(--muted)}
+.lock input{height:54px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:24px;text-align:center;letter-spacing:.3em;outline:none}
+.lock input:focus{border-color:var(--accent)}
+.lock-msg{min-height:18px;font-size:13px;color:var(--red)}
+.lock .link,.link{background:none;color:var(--muted);font-size:13px;text-decoration:underline}
 .ttl{display:flex;align-items:center;gap:8px}
 .vista-btn{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:11px;background:var(--accent-soft);border:1px solid var(--line);color:var(--accent)}
 .vista-btn svg{width:18px;height:18px}
@@ -275,6 +285,7 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
 };
 ICON.cartao = ICON.card;
+ICON.lock = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
 ICON.vistaLista = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="5" rx="1.5"/><rect x="3" y="10" width="18" height="5" rx="1.5"/><rect x="3" y="17" width="18" height="4" rx="1.5"/></svg>';
 ICON.vistaMes = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
 ICON.keyboard = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 15h6"/></svg>';
@@ -282,46 +293,21 @@ ICON.minus ='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke=
 ICON.mic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const TIPOS_PAG = [{ v: 'cartao', l: 'Cartão de crédito' }, { v: 'pix', l: 'Pix' }, { v: 'boleto', l: 'Boleto' }, { v: 'debito', l: 'Débito / conta' }, { v: 'dinheiro', l: 'Dinheiro' }, { v: 'outro', l: 'Outro' }];
 
-/* ============ dados iniciais (vindos da planilha) ============ */
+/* ============ dados iniciais ============ */
+/* começa vazio: os dados reais vêm do repositório privado no GitHub (este código é público) */
 function seed() {
-  const pagamentos = [
-    { id: 'nu', nome: 'Cartão NU', tipo: 'cartao' },
-    { id: 'nupj', nome: 'Cartão NU PJ', tipo: 'cartao' },
-    { id: 'pix', nome: 'Pix', tipo: 'pix' },
-    { id: 'boleto', nome: 'Boleto', tipo: 'boleto' },
-    { id: 'deb', nome: 'Débito em conta', tipo: 'debito' },
-    { id: 'din', nome: 'Dinheiro', tipo: 'dinheiro' },
-  ];
-  const fixos = [
-    ['fies', 'Fies', 194.76, 'boleto'], ['aluguel', 'Aluguel', 800, 'pix'], ['claro', 'Claro', 67.45, 'deb'],
-    ['tvip', 'TV IP', 42.49, 'pix'], ['google', 'Google', 7.99, 'nu'], ['apple', 'Apple', 5.9, 'nu'],
-    ['seguro', 'Seguro Carro', 168.95, 'nu'], ['internet', 'Internet', 105, 'nu'], ['lbv', 'Ajuda LBV', 0, 'nu'],
-    ['faculdade', 'Faculdade', 183.09, 'boleto'],
-  ].map(([id, nome, valor, pag]) => ({ id, nome, valor, pag }));
-  const mk = (salario, extras, over, vars, inv) => ({
-    salario,
-    extras: extras.map(([desc, valor]) => ({ id: uid(), desc, valor })),
-    fixas: fixos.map(f => ({ id: uid(), ref: f.id, nome: f.nome, valor: (f.id in over) ? over[f.id] : f.valor, pag: f.pag, pago: false })),
-    variaveis: vars.map(([desc, valor, pag]) => ({ id: uid(), desc, valor, pag: pag || '' })),
-    invest: inv.map(([desc, valor]) => ({ id: uid(), desc, valor })),
-    retiradas: [],
-  });
   return {
     version: 1,
-    salarioPadrao: 9000,
-    pagamentos, fixos,
-    parcelados: [],
-    meses: {
-      '2026-11': mk(8000, [['Renda extra', 1500]], { aluguel: 700, google: 0, apple: 0, seguro: 0, internet: 0 },
-        [['Fatura NU Gastos', 1289.21, 'nu'], ['Fatura NU PJ', 2051.14, 'nupj'], ['GIRO 4/10', 1384.29]], []),
-      '2026-12': mk(8000, [], { aluguel: 700 },
-        [['TV 11/12', 199.92], ['Academia', 129.9], ['GIRO 5/10', 1384.29], ['Terno 3/3', 212.63], ['Ingresso 2/3', 83.43], ['Aniver pai', 134.4]],
-        [['Guardar', 3000]]),
-      '2027-01': mk(8000, [], {},
-        [['TV 12/12', 199.92], ['Academia', 129.9], ['GIRO 5/10', 1384.29], ['Ingresso 3/3', 83.43]], [['Guardar', 3000]]),
-      '2027-02': mk(9000, [], {}, [['GIRO 5/10', 1384.29], ['Academia', 129.9]], [['Guardar', 4000]]),
-      '2027-03': mk(9000, [], {}, [['GIRO 6/10', 1384.29], ['Academia', 129.9]], [['Guardar', 4000]]),
-    },
+    salarioPadrao: 0,
+    pagamentos: [
+      { id: 'pix', nome: 'Pix', tipo: 'pix' },
+      { id: 'boleto', nome: 'Boleto', tipo: 'boleto' },
+      { id: 'deb', nome: 'Débito em conta', tipo: 'debito' },
+      { id: 'din', nome: 'Dinheiro', tipo: 'dinheiro' },
+    ],
+    fixos: [],
+    meses: {},
+    migParcTexto: 1,
   };
 }
 
@@ -344,7 +330,7 @@ function normalize() {
 /* cria o mês (com salário padrão e fixos) se ainda não existir */
 function garantirMes(k) { if (!S.meses[k]) S.meses[k] = novoMes(k); return S.meses[k]; }
 
-/* Converte lançamentos escritos como "GIRO 4/10", "TV 11/12" em parcelados de verdade.
+/* Converte lançamentos escritos como "Celular 4/10" em parcelados de verdade.
    A primeira aparição define a sequência; as parcelas seguintes vão para os meses certos
    (criando os que faltam). Parcelas anteriores à primeira aparição não são criadas. */
 function converterParcelasDoTexto() {
@@ -383,12 +369,13 @@ function migrarSePreciso() {
   render();
   if (r.nomes.length) setTimeout(() => toast(`Viraram parcelados: ${r.nomes.join(', ')}` + (r.criados.length ? `. Meses criados: ${r.criados.map(shortLabel).join(', ')}` : '')), 300);
 }
-function load() {
-  try { const raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); } } catch (e) { S = null; }
+function load(raw) {
+  try { if (raw === undefined) raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); } } catch (e) { S = null; }
   if (!S || !S.meses) { S = seed(); S.updatedAt = 0; saveLocal(); }
   normalize();
 }
 function saveLocal() {
+  if (lockOn()) { salvarCripto(); return; }
   try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { toast('Não foi possível salvar neste aparelho'); }
 }
@@ -407,7 +394,100 @@ const SYNC_KEY = 'financas_sync_v1';
 const SY = { owner: '', repo: '', path: 'dados.json', token: '', auto: true, sha: null, dirty: false, lastSync: 0 };
 const syncState = { status: 'off', msg: '' };
 function loadSync() { try { Object.assign(SY, JSON.parse(localStorage.getItem(SYNC_KEY) || '{}')); } catch (e) {} }
-function saveSync() { try { localStorage.setItem(SYNC_KEY, JSON.stringify(SY)); } catch (e) {} }
+function saveSync() {
+  if (lockOn() && !SY.token) delete SY.tokenEnc;
+  try { const c = { ...SY }; if (lockOn()) delete c.token; localStorage.setItem(SYNC_KEY, JSON.stringify(c)); } catch (e) {}
+  // com PIN, o token só fica guardado criptografado
+  if (lockOn() && LOCK.key && SY.token && SY.token !== LOCK.tok) {
+    const t = SY.token;
+    encStr(LOCK.key, t).then(e => { LOCK.tok = t; SY.tokenEnc = e; saveSync(); });
+  }
+}
+
+/* ============ trava com PIN (por aparelho) ============ */
+/* PIN -> PBKDF2 (310 mil iterações) -> chave AES-GCM. Criptografa o token e os dados guardados neste navegador.
+   O PIN não é guardado em lugar nenhum; sem ele não há como ler os dados locais. */
+const LOCK_KEY = 'financas_lock_v1', DATA_ENC_KEY = 'financas_thiago_v1_enc', LOCK_MIN = 5;
+const LOCK = { meta: null, key: null, tok: null };
+function loadLock() { try { LOCK.meta = JSON.parse(localStorage.getItem(LOCK_KEY) || 'null'); } catch (e) { LOCK.meta = null; } }
+const lockOn = () => !!LOCK.meta;
+const bufToB64 = buf => { const by = new Uint8Array(buf); let bin = ''; for (let i = 0; i < by.length; i += 0x8000) bin += String.fromCharCode.apply(null, by.subarray(i, i + 0x8000)); return btoa(bin); };
+const b64ToBuf = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function derivarChave(pin, saltB64, iter) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64ToBuf(saltB64), iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encStr(key, str) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(str));
+  return { iv: bufToB64(iv), ct: bufToB64(ct) };
+}
+async function decStr(key, o) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBuf(o.iv) }, key, b64ToBuf(o.ct));
+  return new TextDecoder().decode(pt);
+}
+let filaCripto = Promise.resolve();
+function salvarCripto() {
+  const json = JSON.stringify(S), key = LOCK.key;
+  if (!key) return;
+  filaCripto = filaCripto.then(() => encStr(key, json)).then(e => { localStorage.setItem(DATA_ENC_KEY, JSON.stringify(e)); localStorage.removeItem(KEY); })
+    .catch(() => toast('Não foi possível salvar neste aparelho'));
+}
+async function ativarPin(pin) {
+  const salt = bufToB64(crypto.getRandomValues(new Uint8Array(16))), iter = 310000;
+  const key = await derivarChave(pin, salt, iter);
+  LOCK.meta = { salt, iter, check: await encStr(key, 'ok') };
+  LOCK.key = key; LOCK.tok = null;
+  localStorage.setItem(LOCK_KEY, JSON.stringify(LOCK.meta));
+  saveLocal(); saveSync();
+  await filaCripto;
+}
+function desativarPin() {
+  LOCK.meta = null; LOCK.key = null; LOCK.tok = null; delete SY.tokenEnc;
+  localStorage.removeItem(LOCK_KEY); localStorage.removeItem(DATA_ENC_KEY);
+  saveLocal(); saveSync();
+}
+function apagarAparelho() {
+  [KEY, DATA_ENC_KEY, LOCK_KEY, SYNC_KEY].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  location.reload();
+}
+let tentativas = 0, bloqueadoAte = 0;
+function mostrarTrava(msg = '') {
+  document.body.classList.add('locked');
+  $('#app').innerHTML = `<form class="lock" id="lockForm" autocomplete="off">
+    <div class="lock-ic">${ICON.lock}</div>
+    <h1>Finanças</h1>
+    <p>Digite o PIN deste aparelho</p>
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" aria-label="PIN">
+    <div class="lock-msg">${esc(msg)}</div>
+    <button class="btn" type="submit">Entrar</button>
+    <button class="link" type="button" id="esqueci">Esqueci o PIN</button>
+  </form>`;
+  const inp = $('#pinIn'); setTimeout(() => inp.focus(), 50);
+  $('#esqueci').onclick = () => {
+    if (confirm('Sem o PIN não dá para ler os dados guardados neste aparelho.\n\nApagar os dados DESTE aparelho? Os dados no GitHub continuam intactos: é só conectar de novo com o token.')) apagarAparelho();
+  };
+  $('#lockForm').onsubmit = async e => {
+    e.preventDefault();
+    if (Date.now() < bloqueadoAte) return mostrarTrava(`Muitas tentativas. Aguarde ${Math.ceil((bloqueadoAte - Date.now()) / 1000)} s.`);
+    const pin = inp.value; if (!pin) return;
+    $('.lock-msg').textContent = 'Verificando…';
+    try {
+      const key = await derivarChave(pin, LOCK.meta.salt, LOCK.meta.iter);
+      if ((await decStr(key, LOCK.meta.check)) !== 'ok') throw 0;
+      LOCK.key = key; tentativas = 0;
+      if (SY.tokenEnc) { SY.token = await decStr(key, SY.tokenEnc); LOCK.tok = SY.token; }
+      const enc = localStorage.getItem(DATA_ENC_KEY);
+      const raw = enc ? await decStr(key, JSON.parse(enc)) : null;
+      document.body.classList.remove('locked');
+      iniciar(raw);
+    } catch (err) {
+      tentativas++;
+      if (tentativas >= 5) { bloqueadoAte = Date.now() + 30000; tentativas = 0; return mostrarTrava('PIN incorreto. Aguarde 30 s para tentar de novo.'); }
+      mostrarTrava('PIN incorreto.');
+    }
+  };
+}
 const syncOn = () => !!(SY.owner && SY.repo && SY.token);
 const b64enc = s => { const by = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < by.length; i += 0x8000) bin += String.fromCharCode.apply(null, by.subarray(i, i + 0x8000)); return btoa(bin); };
 const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
@@ -653,6 +733,13 @@ function viewMes() {
       <div class="lbl">${label(k)}</div>
       <button class="icon-btn" data-a="next" aria-label="Próximo mês">${ICON.right}</button>
     </div></div>`;
+  if (!Object.keys(S.meses).length && !syncOn()) {
+    return head + `<div class="sec empty-month">
+      <h2 style="margin:0;font-size:17px">Bem-vindo</h2>
+      <p>Para ver seus dados, conecte ao repositório privado do GitHub. Eles ficam guardados lá, não no código do app.</p>
+      <button class="btn" data-a="cfg-sync">Conectar ao GitHub</button>
+      <button class="btn ghost" style="margin-top:8px" data-a="criar">Começar do zero neste aparelho</button></div>`;
+  }
   if (!m) {
     return head + `<div class="sec empty-month">
       <h2 style="margin:0;font-size:17px">${label(k)} ainda não existe</h2>
@@ -922,10 +1009,20 @@ function viewConfig() {
     <div class="sec-sub">Cópia manual dos dados. Útil mesmo com o GitHub conectado.</div>
     <div class="btn-row"><button class="btn ghost" data-a="export">Exportar backup</button><button class="btn ghost" data-a="import">Importar backup</button></div>
   </div>
+  ${lockOn() ? `<div class="sec">
+    <div class="sec-h"><h2>Trava com PIN</h2><span class="sync ok">Ativa</span></div>
+    <div class="sec-sub">O token e os dados deste aparelho estão criptografados com o PIN. O app pede o PIN ao abrir e depois de ${LOCK_MIN} minutos fora dele.</div>
+    <div class="btn-row"><button class="btn ghost" data-a="pin-trocar">Trocar PIN</button><button class="btn ghost" data-a="pin-off">Desativar</button></div>
+    <div class="btn-row" style="padding-top:0"><button class="btn ghost" data-a="travar">${ICON.lock}Travar agora</button></div>
+  </div>` : `<div class="sec">
+    <div class="sec-h"><h2>Trava com PIN</h2><span class="sync">Desligada</span></div>
+    <div class="sec-sub">Recomendado no computador. Criptografa o token e os dados guardados <b>neste aparelho</b>; sem o PIN, ninguém consegue ver nem burlar. Cada aparelho tem o seu PIN.</div>
+    <div class="btn-row"><button class="btn" data-a="pin-on">${ICON.lock}Ativar PIN</button></div>
+  </div>`}
   <div class="sec">
-    <div class="sec-h"><h2>Recomeçar</h2></div>
-    <div class="sec-sub">Apaga tudo deste aparelho e volta aos dados originais da planilha.</div>
-    <div class="btn-row"><button class="btn danger" data-a="reset">Restaurar dados da planilha</button></div>
+    <div class="sec-h"><h2>Apagar deste aparelho</h2></div>
+    <div class="sec-sub">Remove os dados, o token e o PIN só deste aparelho (ex.: computador que não é seu). O que está no GitHub não é afetado.</div>
+    <div class="btn-row"><button class="btn danger" data-a="reset">Apagar dados deste aparelho</button></div>
   </div>`;
 }
 
@@ -964,6 +1061,7 @@ function fieldHtml(f) {
   if (f.type === 'seg') return `<div class="f"${show}>${f.label ? `<label>${f.label}</label>` : ''}<div class="seg" data-seg="${f.name}">${f.options.map(o => `<button type="button" data-v="${o.v}" class="${o.v === f.value ? 'on' : ''}">${o.l}</button>`).join('')}</div><input type="hidden" name="${f.name}" value="${esc(f.value)}">${hint}</div>`;
   if (f.type === 'check') return `<div class="f"${show}><label class="sw" style="margin:0;color:var(--text);font-size:15px;font-weight:500">${f.label}<input type="checkbox" name="${f.name}" ${f.value ? 'checked' : ''}></label>${hint}</div>`;
   if (f.type === 'month') return `<div class="f"${show}><label>${f.label}</label><input type="month" name="${f.name}" value="${esc(f.value)}">${hint}</div>`;
+  if (f.type === 'pin') return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" type="password" inputmode="numeric" autocomplete="new-password" value="">${hint}</div>`;
   if (f.type === 'password') return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(f.value)}" placeholder="${esc(f.ph || '')}">${hint}</div>`;
   if (f.type === 'number') return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" type="number" inputmode="numeric" min="${f.min ?? 1}" max="${f.max ?? 120}" value="${esc(f.value)}">${hint}</div>`;
   return `<div class="f"${show}><label>${f.label}</label><input name="${f.name}" autocomplete="off" value="${esc(f.value)}" placeholder="${esc(f.ph || '')}">${hint}</div>`;
@@ -1614,21 +1712,50 @@ document.addEventListener('click', e => {
     case 'sync-off': if (confirm('Desconectar do GitHub neste aparelho? Os dados continuam aqui e no GitHub.')) { Object.assign(SY, { token: '', sha: null }); saveSync(); setSync('off'); render(); } break;
     case 'export': exportar(); break;
     case 'import': $('#importFile').click(); break;
-    case 'reset': if (confirm('Apagar tudo deste aparelho e voltar aos dados da planilha?' + (syncOn() ? ' Isso também substitui os dados salvos no GitHub.' : '') + ' Exporte um backup antes, se precisar.')) { S = seed(); normalize(); save(); ui.mes = mesInicial(); ui.tab = 'mes'; render(); toast('Dados restaurados'); migrarSePreciso(); } break;
+    case 'reset': {
+      const pend = syncOn() && SY.dirty ? '\n\nATENÇÃO: há alterações ainda não enviadas ao GitHub; elas serão perdidas.' : '';
+      if (confirm('Apagar os dados, o token e o PIN deste aparelho? Os dados no GitHub continuam intactos.' + pend)) apagarAparelho();
+      break;
+    }
+    case 'pin-on': case 'pin-trocar': openSheet({
+      title: a === 'pin-on' ? 'Ativar PIN' : 'Trocar PIN', saveLabel: 'Salvar PIN',
+      fields: [
+        { type: 'pin', name: 'pin', label: 'Novo PIN (mínimo 6 dígitos)' },
+        { type: 'pin', name: 'pin2', label: 'Repita o PIN', hint: 'Não há como recuperar o PIN. Se esquecer, apague os dados do aparelho e conecte de novo ao GitHub.' },
+      ],
+      onSave: v => {
+        if (!need(v.pin.length >= 6, 'O PIN precisa ter pelo menos 6 dígitos') || !need(v.pin === v.pin2, 'Os PINs não conferem')) return false;
+        ativarPin(v.pin).then(() => { render(); toast(a === 'pin-on' ? 'PIN ativado' : 'PIN trocado'); }).catch(() => toast('Não foi possível ativar o PIN neste navegador'));
+        return 'nosave';
+      },
+    }); break;
+    case 'pin-off': if (confirm('Desativar o PIN? O token e os dados voltam a ficar guardados sem criptografia neste aparelho.')) { desativarPin(); render(); toast('PIN desativado'); } break;
+    case 'travar': filaCripto.then(() => location.reload()); break;
   }
 });
 
 /* ============ início ============ */
-loadSync();
-load();
-ui.mes = mesInicial();
-if (syncOn()) syncState.status = SY.dirty ? 'pend' : 'ok';
-render();
-/* sincroniza primeiro (para converter já sobre os dados mais novos) e depois converte as parcelas antigas */
-if (syncOn()) sincronizar({ silent: true }).finally(migrarSePreciso); else migrarSePreciso();
-/* ao voltar para o app (ex.: depois de usar no computador), busca as novidades */
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && syncOn()) sincronizar({ silent: true }); });
-window.addEventListener('online', () => { if (syncOn()) sincronizar({ silent: true }); });
+let iniciado = false, escondidoEm = 0;
+function iniciar(raw) {
+  load(raw);
+  ui.mes = mesInicial();
+  if (syncOn()) syncState.status = SY.dirty ? 'pend' : 'ok';
+  render();
+  /* sincroniza primeiro (para converter já sobre os dados mais novos) e depois converte as parcelas antigas */
+  if (syncOn()) sincronizar({ silent: true }).finally(migrarSePreciso); else migrarSePreciso();
+  iniciado = true;
+}
+loadSync(); loadLock();
+if (lockOn()) mostrarTrava(); else iniciar();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { escondidoEm = Date.now(); return; }
+  /* com PIN: depois de alguns minutos fora do app, pede o PIN de novo */
+  if (lockOn() && iniciado && escondidoEm && Date.now() - escondidoEm > LOCK_MIN * 60000) { filaCripto.then(() => location.reload()); return; }
+  /* ao voltar para o app (ex.: depois de usar no computador), busca as novidades */
+  if (iniciado && syncOn()) sincronizar({ silent: true });
+});
+window.addEventListener('online', () => { if (iniciado && syncOn()) sincronizar({ silent: true }); });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
