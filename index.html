@@ -183,6 +183,33 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:.95}
 .note{font-size:12.5px;color:var(--muted);padding:0 4px 12px}
+.sec-title{font-size:15px;margin:18px 4px 10px}
+.hero.saude{color:#fff}
+.s-top{display:flex;align-items:center;gap:14px}
+.gauge{width:132px;flex:none}
+.g-num{font-size:34px;font-weight:800;fill:#fff}
+.s-st{font-size:24px;font-weight:800;line-height:1.1;margin:2px 0 4px}
+.s-fr{font-size:13px;opacity:.85;line-height:1.35}
+.s-per{font-size:11.5px;opacity:.6;margin-top:10px}
+.ind{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.ind .stat{white-space:normal}
+.ind .v{font-size:17px}
+.ind .s2{font-size:11.5px;color:var(--muted);margin-top:2px}
+.dotn{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--c)}
+.i-ok{--c:var(--accent)} .i-atencao{--c:#f59e0b} .i-alerta{--c:var(--red)}
+.g-bars{width:100%;height:auto;display:block}
+.g-lbl{font-size:10px;fill:var(--muted)}
+.g-list{display:flex;flex-wrap:wrap;gap:6px;padding:4px 14px 12px}
+.g-list button{display:flex;flex-direction:column;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:5px 9px;font-size:11.5px;color:var(--muted)}
+.g-list button b{font-size:12.5px}
+.g-list button:disabled{opacity:.75}
+.dica{display:flex;gap:10px;padding:11px 14px;border-top:1px solid var(--line)}
+.d-ic{width:24px;height:24px;flex:none;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;background:var(--c)}
+.d-t{font-weight:650;font-size:14px}
+.d-x{font-size:13px;color:var(--muted);margin-top:2px;line-height:1.4}
+.d-alerta{--c:var(--red)} .d-atencao{--c:#f59e0b} .d-dica{--c:var(--blue)} .d-ok{--c:var(--accent)} .d-info{--c:#94a3b8}
+.como summary{list-style:none;cursor:pointer}
+.como summary::-webkit-details-marker{display:none}
 body.locked .nav,body.locked .fab,body.locked .fab-mic{display:none!important}
 .lock{max-width:340px;margin:12vh auto 0;text-align:center;display:flex;flex-direction:column;gap:12px}
 .lock-ic{width:64px;height:64px;border-radius:20px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin:0 auto}
@@ -231,7 +258,7 @@ body.locked .nav,body.locked .fab,body.locked .fab-mic{display:none!important}
   <button data-tab="mes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Mês</button>
   <button data-tab="fixos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Fixos</button>
   <button data-tab="invest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Investido</button>
-  <button data-tab="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Histórico</button>
+  <button data-tab="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/><path d="M3.5 12h4l2-3 3 6 2-3h6"/></svg>Saúde</button>
   <button data-tab="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
 </div></nav>
 
@@ -688,7 +715,7 @@ function mesInicial() {
 function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $('#fab').style.display = $('#fabMic').style.display = (ui.tab === 'mes' && ui.vista === 'mes' && S.meses[ui.mes]) ? '' : 'none';
-  const v = { mes: viewMes, fixos: viewFixos, invest: viewInvest, hist: viewHist, config: viewConfig }[ui.tab];
+  const v = { mes: viewMes, fixos: viewFixos, invest: viewInvest, hist: viewSaude, config: viewConfig }[ui.tab];
   $('#app').innerHTML = v();
 }
 
@@ -951,15 +978,199 @@ function viewInvest() {
   </div>`;
 }
 
+/* ============ saúde financeira ============ */
+/* Regras simples e transparentes, calculadas só com os dados do app:
+   olha do mês atual até 6–12 meses à frente; meses ainda não criados são projetados
+   (salário padrão + fixos) e meses futuros ganham uma estimativa de gastos variáveis
+   à vista (média dos meses já passados), para a previsão não ficar otimista demais. */
+function analiseSaude() {
+  const hoje = todayKey(), ks = Object.keys(S.meses).sort();
+  if (!ks.length) return null;
+  const ult = ks[ks.length - 1];
+  let fim = addMonth(hoje, 5);
+  if (ult > fim) fim = ult < addMonth(hoje, 11) ? ult : addMonth(hoje, 11);
+  const vista = m => sum(m.variaveis.filter(v => !v.parc && !v.terceiro));
+  // só meses já encerrados (no máximo os 3 últimos): o mês atual ainda está sendo lançado
+  const passados = ks.filter(k => k < hoje).slice(-3).map(k => vista(S.meses[k]));
+  const mediaVar = passados.length ? round(passados.reduce((a, b) => a + b, 0) / passados.length) : 0;
+  const meses = [];
+  for (let k = hoje; k <= fim; k = addMonth(k, 1)) {
+    const m = S.meses[k];
+    let entradas, extra, fixas, gastos, invest, parc, estimado = 0, projetado = false, sobraBase;
+    if (m) {
+      const t = totais(m);
+      ({ entradas, extra, fixas, gastos, invest } = t); sobraBase = t.sobra;
+      parc = sum(m.variaveis.filter(v => v.parc && !v.terceiro));
+      if (k > hoje && vista(m) < mediaVar) estimado = round(mediaVar - vista(m));
+    } else {
+      projetado = true; entradas = Number(S.salarioPadrao) || 0; extra = 0; fixas = sum(S.fixos); invest = 0; parc = 0;
+      estimado = mediaVar; gastos = fixas; sobraBase = round(entradas - fixas);
+    }
+    meses.push({ k, entradas, extra, fixas, gastos: round(gastos + estimado), invest, parc, estimado, projetado, sobra: round(sobraBase - estimado) });
+  }
+  const n = meses.length, soma = f => round(meses.reduce((a, x) => a + f(x), 0));
+  const totEnt = soma(x => x.entradas), totSobra = soma(x => x.sobra), totInv = soma(x => x.invest);
+  const taxaSobra = totEnt > 0 ? totSobra / totEnt : 0;
+  const comRenda = meses.filter(x => x.entradas > 0);
+  const media = (arr, f) => arr.length ? arr.reduce((a, x) => a + f(x), 0) / arr.length : 0;
+  const fixasPct = media(comRenda, x => x.fixas / x.entradas);
+  const parcMax = comRenda.reduce((a, x) => x.parc / x.entradas > a.pct ? { pct: x.parc / x.entradas, k: x.k, v: x.parc } : a, { pct: 0, k: null, v: 0 });
+  const investPct = totEnt > 0 ? totInv / totEnt : 0;
+  const negativos = meses.filter(x => x.sobra < 0);
+  const dependeExtra = meses.filter(x => x.sobra >= 0 && x.extra > 0 && x.sobra - x.extra < 0);
+  // reserva de emergência: 6 meses de gastos essenciais (fixos + média das compras à vista já encerradas)
+  const essencial = round(media(meses, x => x.fixas) + mediaVar);
+  const cart = carteira(), reservaSaldo = Math.max(0, cart.ateHoje), reservaMeta = round(essencial * 6);
+  const reservaPct = reservaMeta > 0 ? Math.min(1, reservaSaldo / reservaMeta) : 1;
+  const sobraMedia = round(totSobra / n);
+  // tendência: média da 1ª metade x 2ª metade do período
+  const meio = Math.floor(n / 2), m1 = media(meses.slice(0, meio), x => x.sobra), m2 = media(meses.slice(meio), x => x.sobra);
+  // parcelas que terminam dentro do período (liberam dinheiro)
+  const grupos = {};
+  ks.forEach(k => S.meses[k].variaveis.forEach(v => { if (v.parc && !v.terceiro) { const g = grupos[v.parc.g] ||= { desc: v.desc, valor: v.valor, fim: k }; if (k > g.fim) g.fim = k; g.valor = v.valor; } }));
+  const terminando = Object.values(grupos).filter(g => g.fim >= hoje && g.fim <= fim).sort((a, b) => a.fim.localeCompare(b.fim));
+  const terceiros = soma(x => S.meses[x.k] ? totais(S.meses[x.k]).terceiros : 0);
+  // pendências do mês atual
+  const mAtual = S.meses[hoje];
+  const pend = mAtual ? [...mAtual.fixas.filter(f => f.valor > 0), ...mAtual.variaveis].filter(x => !x.pago) : [];
+
+  // nota 0–100
+  const lin = (v, a, b) => Math.max(0, Math.min(1, (v - a) / (b - a)));
+  const pts = {
+    sobra: Math.round(lin(taxaSobra, 0, 0.25) * 40),
+    fixas: Math.round((1 - lin(fixasPct, 0.4, 0.8)) * 20),
+    parcelas: Math.round((1 - lin(parcMax.pct, 0.1, 0.35)) * 10),
+    reserva: Math.round(reservaPct * 12 + lin(investPct, 0, 0.1) * 8),
+    negativos: negativos.length ? 0 : 10,
+  };
+  const nota = pts.sobra + pts.fixas + pts.parcelas + pts.reserva + pts.negativos;
+  let status = nota >= 80 ? 'otima' : nota >= 60 ? 'boa' : nota >= 40 ? 'atencao' : 'negativa';
+  if (negativos.length) status = (nota >= 60 && negativos.length <= 1) ? 'atencao' : 'negativa';
+  if (taxaSobra < 0) status = 'negativa';
+
+  // dicas
+  const dicas = [];
+  const add = (nivel, titulo, texto) => dicas.push({ nivel, titulo, texto });
+  const pct = v => (v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + '%';
+  if (negativos.length <= 2) negativos.forEach(x => add('alerta', `${label(x.k)} fecha no negativo`,
+    `Previsão de ${fmt(x.sobra)}. Para fechar no zero, corte ${fmt(-x.sobra)} em gastos desse mês ou reforce a renda.` + (x.invest ? ` Há ${fmt(x.invest)} de investimento programado que pode ser adiado.` : '')));
+  else {
+    const pior = negativos.reduce((a, x) => x.sobra < a.sobra ? x : a);
+    add('alerta', `${negativos.length} meses fecham no negativo`, `${negativos.map(x => shortLabel(x.k)).join(', ')}. O pior é ${label(pior.k)}, com ${fmt(pior.sobra)}. No total faltam ${fmt(-negativos.reduce((a, x) => a + x.sobra, 0))}: reduza gastos ou evite novas parcelas até equilibrar.`);
+  }
+  if (taxaSobra >= 0 && taxaSobra < 0.1) add('atencao', 'Sobra apertada', `Em média sobram só ${pct(taxaSobra)} da renda (${fmt(sobraMedia)}/mês). O ideal é guardar pelo menos 20%.`);
+  if (fixasPct > 0.6) {
+    const top = S.fixos.slice().sort((a, b) => b.valor - a.valor).slice(0, 3).map(f => `${f.nome} (${fmt(f.valor)})`).join(', ');
+    add('atencao', 'Gastos fixos pesados', `As despesas fixas comprometem ${pct(fixasPct)} da renda. Revise as maiores: ${top}.`);
+  }
+  if (parcMax.pct > 0.2) add('atencao', 'Muitas parcelas', `Em ${label(parcMax.k)} as parcelas somam ${fmt(parcMax.v)} (${pct(parcMax.pct)} da renda). Evite novas compras parceladas até elas diminuírem.`);
+  if (dependeExtra.length) add('atencao', 'Depende de renda extra', `${dependeExtra.map(x => shortLabel(x.k)).join(', ')} só fecha${dependeExtra.length > 1 ? 'm' : ''} no positivo por causa da renda extra. Sem ela, faltaria dinheiro.`);
+  if (n >= 4 && m2 < m1 * 0.8 && m1 > 0) add('atencao', 'Sobra caindo', `A sobra prevista cai de ${fmt(m1)}/mês para ${fmt(m2)}/mês na segunda metade do período.`);
+  if (reservaPct < 1 && sobraMedia > 0 && !negativos.length) {
+    const guardar = Math.max(50, Math.round(sobraMedia * 0.3 / 50) * 50), falta = round(reservaMeta - reservaSaldo);
+    add('dica', 'Reserva de emergência', `O ideal é ter guardado 6 meses dos seus gastos essenciais (${fmt(essencial)}/mês), ou seja ${fmt(reservaMeta)}. Você tem ${fmt(reservaSaldo)}. Guardando ${fmt(guardar)}/mês (30% da sobra prevista), completa em ${Math.ceil(falta / guardar)} meses.`);
+  }
+  if (totInv === 0 && sobraMedia > 0 && !negativos.length) add('dica', 'Nada programado para investir', `A previsão é sobrar ${fmt(sobraMedia)}/mês, mas não há investimentos lançados nos próximos meses. Programe um valor fixo na aba Investido para ele não virar gasto.`);
+  if (terceiros > 0) add('dica', 'Valores de terceiros nos cartões', `${fmt(terceiros)} nas suas faturas são de outras pessoas. Confira se já foram devolvidos.`);
+  if (terminando.length === 1) { const g = terminando[0]; add('ok', `${g.desc} termina em ${shortLabel(g.fim)}`, `A partir de ${shortLabel(addMonth(g.fim, 1))} sobram mais ${fmt(g.valor)}/mês.`); }
+  else if (terminando.length > 1) {
+    const lib = round(terminando.reduce((a, g) => a + g.valor, 0)), maiores = terminando.slice().sort((a, b) => b.valor - a.valor).slice(0, 3);
+    add('ok', `${terminando.length} parcelamentos terminam até ${shortLabel(terminando[terminando.length - 1].fim)}`, `Juntos liberam ${fmt(lib)}/mês. Os maiores: ${maiores.map(g => `${g.desc} (${fmt(g.valor)}, último em ${shortLabel(g.fim)})`).join(', ')}.`);
+  }
+  if (!negativos.length && taxaSobra >= 0.2) add('ok', 'Boa margem', `Em média sobram ${pct(taxaSobra)} da renda (${fmt(sobraMedia)}/mês), acima dos 20% recomendados.`);
+  if (pend.length && hoje === todayKey()) add('info', `${pend.length} ${pend.length === 1 ? 'conta' : 'contas'} de ${label(hoje)} sem marcar como paga`, `Somam ${fmt(sum(pend))}. Marque como pagas conforme for quitando para acompanhar melhor.`);
+  const proj = meses.some(x => x.projetado) ? ' Meses ainda não criados usam o salário padrão e os gastos fixos.' : '';
+  if (mediaVar > 0) add('info', 'Como a previsão é feita', `Nos meses futuros incluí ${fmt(mediaVar)}/mês de compras à vista estimadas (sua média dos últimos meses encerrados), porque elas ainda não foram lançadas.` + proj);
+  else add('info', 'A previsão pode estar otimista', `Ela considera só o que já está lançado. Compras do dia a dia que ainda não foram lançadas vão reduzir a sobra. Quando houver meses encerrados, o app passa a estimá-las pela sua média.` + proj);
+  const ordem = { alerta: 0, atencao: 1, dica: 2, ok: 3, info: 4 };
+  dicas.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]);
+
+  return { meses, nota, status, pts, taxaSobra, fixasPct, parcMax, investPct, reservaSaldo, reservaMeta, reservaPct, sobraMedia, negativos, dicas, inicio: hoje, fim };
+}
+
+const STATUS = {
+  otima: { t: 'Muito boa', c: '#16a34a', bg: '#0f2a1c', frase: 'Suas contas estão em dia e a previsão é de sobra em todos os meses.' },
+  boa: { t: 'Boa', c: '#22c55e', bg: '#123322', frase: 'A situação é saudável, com alguns pontos que dá para melhorar.' },
+  atencao: { t: 'Atenção', c: '#f59e0b', bg: '#3a2a07', frase: 'Há meses ou indicadores que pedem cuidado. Veja os pontos abaixo.' },
+  negativa: { t: 'Negativa', c: '#ef4444', bg: '#3a1111', frase: 'A previsão mostra falta de dinheiro. Priorize os alertas abaixo.' },
+};
+
+function viewSaude() {
+  const a = analiseSaude();
+  if (!a) return `<div class="top"><h1>Saúde financeira</h1></div><div class="sec"><div class="empty" style="padding:16px">Lance seus meses para ver a análise.</div></div>`;
+  const st = STATUS[a.status];
+  // medidor semicircular
+  const ang = Math.PI * (1 - a.nota / 100), R = 70, cx = 90, cy = 86;
+  const px = cx + R * Math.cos(ang), py = cy - R * Math.sin(ang);
+  const gauge = `<svg viewBox="0 0 180 100" class="gauge" aria-hidden="true">
+    <path d="M20 86 A70 70 0 0 1 160 86" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="14" stroke-linecap="round"/>
+    ${a.nota > 0 ? `<path d="M20 86 A70 70 0 0 1 ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="${st.c}" stroke-width="14" stroke-linecap="round"/>` : ''}
+    <text x="90" y="80" text-anchor="middle" class="g-num">${a.nota}</text></svg>`;
+  const nivelInd = (v, bom, ruim, inverso) => (inverso ? v <= bom : v >= bom) ? 'ok' : (inverso ? v <= ruim : v >= ruim) ? 'atencao' : 'alerta';
+  const p0 = v => (v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + '%';
+  const ind = [
+    { k: 'Sobra prevista', v: fmt(a.sobraMedia) + '/mês', s: `${p0(a.taxaSobra)} da renda · ideal 20%+`, n: nivelInd(a.taxaSobra, 0.2, 0.05) },
+    { k: 'Gastos fixos', v: p0(a.fixasPct), s: 'da renda · ideal até 50%', n: nivelInd(a.fixasPct, 0.5, 0.7, true) },
+    { k: 'Parcelas', v: p0(a.parcMax.pct), s: a.parcMax.k ? `pico em ${shortLabel(a.parcMax.k)} · ideal até 15%` : 'nenhuma parcela', n: nivelInd(a.parcMax.pct, 0.15, 0.3, true) },
+    { k: 'Reserva', v: p0(a.reservaPct), s: `${fmt(a.reservaSaldo)} de ${fmt(a.reservaMeta)}`, n: a.reservaPct >= 1 ? 'ok' : a.reservaPct >= 0.3 ? 'atencao' : 'alerta' },
+  ];
+  // gráfico de sobra prevista
+  const W = 320, H = 150, top = 14, bot = 22, ml = 4;
+  const max = Math.max(...a.meses.map(x => Math.abs(x.sobra)), 1);
+  const temNeg = a.meses.some(x => x.sobra < 0);
+  const zero = temNeg ? top + (H - top - bot) * (Math.max(...a.meses.map(x => x.sobra), 0) / (Math.max(...a.meses.map(x => x.sobra), 0) + Math.max(...a.meses.map(x => -x.sobra), 0) || 1)) : H - bot;
+  const esc0 = (H - top - bot) / (temNeg ? (Math.max(...a.meses.map(x => x.sobra), 0) + Math.max(...a.meses.map(x => -x.sobra), 0)) || 1 : max);
+  const bw = (W - ml) / a.meses.length;
+  const barras = a.meses.map((x, i) => {
+    const h = Math.max(2, Math.abs(x.sobra) * esc0), y = x.sobra >= 0 ? zero - h : zero;
+    const cor = x.sobra < 0 ? 'var(--red)' : 'var(--accent)';
+    return `<g><rect x="${(ml + i * bw + bw * 0.18).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.64).toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${cor}" ${x.projetado ? 'fill-opacity=".35" stroke="' + cor + '" stroke-dasharray="3 2"' : ''}><title>${label(x.k)}: ${fmt(x.sobra)}${x.projetado ? ' (projeção)' : ''}</title></rect>
+      <text x="${(ml + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="g-lbl">${MES_CURTO[+x.k.slice(5) - 1]}</text></g>`;
+  }).join('');
+  const grafico = `<svg viewBox="0 0 ${W} ${H}" class="g-bars" role="img" aria-label="Sobra prevista por mês">
+    <line x1="0" x2="${W}" y1="${zero.toFixed(1)}" y2="${zero.toFixed(1)}" stroke="var(--line)"/>${barras}</svg>`;
+  const ICN = { alerta: '!', atencao: '!', dica: '★', ok: '✓', info: 'i' };
+  return `<div class="top"><h1>Saúde financeira</h1></div>
+  <div class="hero saude" style="background:${st.bg}">
+    <div class="s-top">${gauge}
+      <div><div class="k">Status</div><div class="s-st" style="color:${st.c}">${st.t}</div><div class="s-fr">${st.frase}</div></div>
+    </div>
+    <div class="s-per">Análise de ${shortLabel(a.inicio)} a ${shortLabel(a.fim)} · nota de 0 a 100</div>
+  </div>
+  <div class="ind">${ind.map(x => `<div class="stat i-${x.n}"><div class="k"><span class="dotn"></span>${x.k}</div><div class="v num">${x.v}</div><div class="s2">${x.s}</div></div>`).join('')}</div>
+  <div class="sec">
+    <div class="sec-h"><h2>Sobra prevista por mês</h2></div>
+    <div class="sec-sub"><span style="color:var(--accent)">■</span> lançado &nbsp; <span style="opacity:.5;color:var(--accent)">■</span> projeção${a.negativos.length ? ' &nbsp; <span style="color:var(--red)">■</span> negativo' : ''}</div>
+    <div style="padding:0 10px 4px">${grafico}</div>
+    <div class="g-list">${a.meses.map(x => `<button data-a="goto" data-k="${x.k}" ${x.projetado ? 'disabled' : ''}><span>${shortLabel(x.k)}${x.projetado ? ' *' : ''}</span><b class="num" style="color:${x.sobra < 0 ? 'var(--red)' : 'var(--text)'}">${fmt(x.sobra)}</b></button>`).join('')}</div>
+    ${a.meses.some(x => x.projetado) ? '<div class="sec-sub" style="padding-top:6px">* mês ainda não criado (projeção)</div>' : ''}
+  </div>
+  <div class="sec">
+    <div class="sec-h"><h2>Pontos de atenção e dicas</h2></div>
+    ${a.dicas.map(d => `<div class="dica d-${d.nivel}"><span class="d-ic">${ICN[d.nivel]}</span><div><div class="d-t">${esc(d.titulo)}</div><div class="d-x">${esc(d.texto)}</div></div></div>`).join('') || '<div class="empty">Nada a destacar.</div>'}
+  </div>
+  <details class="sec como"><summary class="sec-h"><h2>Como a nota é calculada</h2></summary>
+    <div class="sec-sub" style="line-height:1.5">
+      Sobra prevista (até 40 pts, cheia com 25% da renda): <b>${a.pts.sobra}</b><br>
+      Gastos fixos (até 20 pts, cheia até 40% da renda): <b>${a.pts.fixas}</b><br>
+      Parcelas (até 10 pts, cheia até 10% da renda): <b>${a.pts.parcelas}</b><br>
+      Reserva e investimentos (até 20 pts): <b>${a.pts.reserva}</b><br>
+      Nenhum mês negativo (10 pts): <b>${a.pts.negativos}</b><br>
+      É uma régua de referência, não uma recomendação financeira profissional.
+    </div>
+  </details>
+  ${viewHist()}`;
+}
+
 function viewHist() {
   const ks = Object.keys(S.meses).sort();
-  if (!ks.length) return `<div class="top"><h1>Histórico</h1></div><div class="sec"><div class="empty" style="padding:16px">Nenhum mês criado.</div></div>`;
+  if (!ks.length) return '';
   const rows = ks.map(k => ({ k, t: totais(S.meses[k], k) }));
   const max = Math.max(...rows.map(r => Math.max(r.t.entradas, r.t.saidas)), 1);
   const totInv = carteira().saldo;
   const totSobra = round(rows.reduce((a, r) => a + r.t.sobra, 0));
   const totEnt = round(rows.reduce((a, r) => a + r.t.entradas, 0));
-  return `<div class="top"><h1>Histórico</h1></div>
+  return `<h2 class="sec-title">Histórico</h2>
   <div class="grid" style="grid-template-columns:repeat(2,1fr)">
     <div class="stat"><div class="k">Total investido</div><div class="v num" style="color:var(--blue)">${fmt(totInv)}</div></div>
     <div class="stat"><div class="k">Sobra acumulada</div><div class="v num" style="color:${totSobra < 0 ? 'var(--red)' : 'var(--accent)'}">${fmt(totSobra)}</div></div>
